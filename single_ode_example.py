@@ -4,7 +4,7 @@ from typing import Union, List
 import scipy.constants as const
 from cleanode.ode_solvers import *
 
-
+# Example of single ODE solving (capital growth)
 if __name__ == '__main__':
     def f(u: float, t: Union[np.ndarray, np.float64]) -> float:
         """

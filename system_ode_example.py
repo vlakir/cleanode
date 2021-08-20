@@ -5,10 +5,8 @@ import scipy.constants as const
 from cleanode.ode_solvers import *
 
 
+# Example of system ODE solving (cannon firing)
 if __name__ == '__main__':
-    """
-    Пример решения системы ДУ (бросок мяча)
-    """
     def f(u: List[float], t: Union[np.ndarray, np.float64]) -> List:
         """
         Вычисление правых частей системы уравнений
@@ -40,11 +38,6 @@ if __name__ == '__main__':
             -g
             ]
 
-        # патч, чтобы PyCharm не ругался:
-        __ = t
-        __ = x
-        __ = y
-
         return right_sides
 
     # параметры расчета:
@@ -75,5 +68,3 @@ if __name__ == '__main__':
     plt.plot(x_solution, y_solution)
 
     plt.show()
-
-
