@@ -6,7 +6,7 @@ with open("README.md", "r") as readme_file:
 requirements = ["numpy>=1.21.2", "funnydeco>=0.1.5", "matplotlib>=3.4.3", "scipy>=1.7.1", "PyQt5>=5.15.4"]
 
 setup(
-    name="cleanapi",
+    name="cleanode",
     version="0.1.0",
     author="Vladimir Kirievskiy",
     author_email="vlakir1234@gmail.com",
