@@ -6,6 +6,7 @@ from cleanode.ode_solvers import *
 
 
 # Example of the system ODE solving: cannon firing
+# Uses custom defined solver
 if __name__ == '__main__':
 
     # noinspection PyUnusedLocal
@@ -59,7 +60,22 @@ if __name__ == '__main__':
 
     u0 = [x0, vx0, y0, vy0]
 
-    solver = RungeKutta4ODESolver(f, u0, t0, tmax, dt0, is_adaptive_step=False)
+    # Butcher tableau defines the custom method
+    butcher_tableau = np.array([
+
+        [0, 0, 0, 0, 0],
+        [1 / 2, 1 / 2, 0, 0, 0],
+        [3 / 4, 0, 3 / 4, 0, 0],
+        [1, 2 / 9, 1 / 3, 4 / 9, 0],
+
+        [None, 2 / 9, 1 / 3, 4 / 9, 0],
+        [None, 7 / 24, 1 / 4, 1 / 3, 1 / 8]
+
+    ], dtype='float')
+
+    name = 'Some custom method'
+
+    solver = GenericExplicitRKODESolver(f, u0, t0, tmax, dt0, butcher_tableau=butcher_tableau, is_adaptive_step=False)
 
     solution, time_points = solver.solve(print_benchmark=True, benchmark_name=solver.name)
 

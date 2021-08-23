@@ -6,7 +6,7 @@ from funnydeco import benchmark
 
 class GenericExplicitRKODESolver:
     """
-    Корневой класс, реализующий решение ДУ явными методами Рунге-Кутты
+    Core class implements explicit Runge-Kutta methods
     """
     def __init__(self, f: Callable,
                  u0: Union[List, float],
@@ -14,24 +14,24 @@ class GenericExplicitRKODESolver:
                  tmax: float,
                  dt0: float,
                  butcher_tableau=None,
-                 name='имя метода не определено',
+                 name='method name is not defined',
                  is_adaptive_step=False):
         """
-        :param f: функция вычисления правой части ДУ или правых частей системы уравнений
+        :param f: function for calculating right parts
         :type f: Callable
-        :param u0: начальное условие
-        :type u0:  Union[List, float]
-        :param t0: нижний предел интегрирования
+        :param u0: initial conditions
+        :type u0: Union[List, float]
+        :param t0: lower limit of integration
         :type t0: float
-        :param tmax: верхний предел интегрирования
+        :param tmax: upper limit of integration
         :type tmax: float
-        :param dt0: начальный шаг интегрирования
+        :param dt0: initial step of integration
         :type dt0: float
-        :param butcher_tableau: таблица Бутчера
+        :param butcher_tableau: Butcher tableau
         :type butcher_tableau: np.array
-        :param name: название метода
-        :type name: str
-        :param is_adaptive_step: использовать адаптивный шаг по времени
+        :param name: method name
+        :type name: string
+        :param is_adaptive_step: use adaptive time step
         :type is_adaptive_step: bool
         """
 
@@ -40,7 +40,7 @@ class GenericExplicitRKODESolver:
         self.butcher_tableau = butcher_tableau
 
         if self.butcher_tableau is None:
-            raise ValueError('Не задана таблица Бутчера')
+            raise ValueError('Butcher tableau is not defined')
 
         if len(self.butcher_tableau[0]) == len(self.butcher_tableau):
             self.c = butcher_tableau[:-1, 0]
@@ -54,11 +54,11 @@ class GenericExplicitRKODESolver:
             self.b1 = butcher_tableau[-1, 1:]
             self.a = butcher_tableau[:-2, 1:]
         else:
-            raise ValueError('Некорректный формат таблицы Бутчера')
+            raise ValueError('Butcher tableau has invalid form')
 
         if (np.count_nonzero(np.triu(self.a))) > 0:
-            raise ValueError('В верхнем треугольнике матрицы a в таблице Бутчера есть ненулевые элементы. '
-                             'Это недопустимо для явного метода Рунге-Кутты.')
+            raise ValueError('There are non-zero elements in the upper triangle of the matrix a in the Butcher tableau.'
+                             ' It is not allowed for an explicit Runge-Kutta method.')
 
         self.is_adaptive_step = is_adaptive_step
 
@@ -71,29 +71,27 @@ class GenericExplicitRKODESolver:
 
         self.t = np.array([t0])
 
-        if isinstance(u0, (float, int)):  # одиночное ДУ
+        if isinstance(u0, (float, int)):  # scalar ODE
             u0 = np.float(u0)
             self.ode_system_size = 1
-        else:  # система ДУ
+        else:  # ODE system
             u0 = np.asarray(u0)
-            self.ode_system_size = u0.size  # количество ДУ в системе
+            self.ode_system_size = u0.size
 
         self.u0 = u0
 
+    # noinspection PyUnusedLocal
     @benchmark
     def solve(self, print_benchmark=False, benchmark_name='') -> Tuple[np.ndarray, np.ndarray]:
         """
-        Решение ДУ
-        :param print_benchmark: выводить в консоль время выполнения
+        ODE solution
+        :param print_benchmark: output the execution time to the console
         :type print_benchmark: bool
-        :param benchmark_name: имя бенчмарка для вывода в консоль
-        :type benchmark_name: str
-        :return: решение, время
-        :rtype: Tuple[np.ndarray, np.ndarray]
+        :param benchmark_name: name of the benchmark to output
+        :type benchmark_name: string
+        :return: solution, time
+        :rtype: Type[np.ndarray, np.ndarray]
         """
-        # патч, чтобы PyCharm не ругался:
-        __ = print_benchmark
-        __ = benchmark_name
 
         if self.ode_system_size == 1:  # scalar ODEs
             self.u = np.array([self.u0])
@@ -109,15 +107,15 @@ class GenericExplicitRKODESolver:
             i += 1
 
         if self.is_adaptive_step:
-            # 2do: для адаптивного шага реализовать финальную интерполяцию на равномерную сетку с шагом dt0
+            # 2do: for the adaptive step: to implement the final interpolation on a uniform grid with dt0 step
             pass
 
         return self.u, self.t
 
     def _step(self) -> np.ndarray:
         """
-        Решение для одного шага интегрирования
-        :return: решение
+        One-step integration solution
+        :return: solution
         :rtype: float
         """
         u, f, n, t, dt, a, b, c = self.u, self.f, self.n, self.t, self.dt, self.a, self.b, self.c
@@ -143,20 +141,20 @@ class GenericExplicitRKODESolver:
 
     def _change_dt(self) -> None:
         """
-        Адаптивный алгоритм изменения шага по дополнительной строке self.b1 таблицы Бутчера
+        Adaptive algorithm for changing the step by an additional row self.b1 of the Butcher tableau
         """
         if self.is_adaptive_step:
             if self.b1 is None:
-                raise ValueError('Значение is_adaptive_step==True не поддерживается для нерасширенной таблицы Бутчера')
+                raise ValueError('is_adaptive_step==True is not supported for a non-extended Butcher tableau')
 
-            # 2do: реализовать
-            raise ValueError('Значение is_adaptive_step==True пока не поддерживается')
+            # 2do: to implement
+            raise ValueError('is_adaptive_step==True is not supported yet')
             # self.dt = ...
 
 
 class EulerODESolver(GenericExplicitRKODESolver):
     """
-    Класс, реализующий метод Эйлера
+    Implements the Euler method
     """
     butcher_tableau = np.array([
 
@@ -166,7 +164,7 @@ class EulerODESolver(GenericExplicitRKODESolver):
 
         ], dtype='float')
 
-    name = 'Метод Эйлера'
+    name = 'Euler method'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs, butcher_tableau=self.butcher_tableau, name=self.name)
@@ -174,7 +172,7 @@ class EulerODESolver(GenericExplicitRKODESolver):
 
 class MidpointODESolver(GenericExplicitRKODESolver):
     """
-    Класс, реализующий метод деления отрезка пополам
+    Implements the Explicit midpoint method
     """
     butcher_tableau = np.array([
 
@@ -185,7 +183,7 @@ class MidpointODESolver(GenericExplicitRKODESolver):
 
         ], dtype='float')
 
-    name = 'Метод деления отрезка пополам'
+    name = 'Explicit midpoint method'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs, butcher_tableau=self.butcher_tableau, name=self.name)
@@ -193,7 +191,7 @@ class MidpointODESolver(GenericExplicitRKODESolver):
 
 class RungeKutta4ODESolver(GenericExplicitRKODESolver):
     """
-    Класс, реализующий метод Рунге-Кутты 4-го порядка
+    Implements the fourth-order Runge–Kutta method
     """
     butcher_tableau = np.array([
 
@@ -206,7 +204,7 @@ class RungeKutta4ODESolver(GenericExplicitRKODESolver):
 
         ], dtype='float')
 
-    name = 'Метод Рунге-Кутты 4-го порядка'
+    name = 'Fourth-order Runge–Kutta method'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs, butcher_tableau=self.butcher_tableau, name=self.name)
@@ -214,7 +212,7 @@ class RungeKutta4ODESolver(GenericExplicitRKODESolver):
 
 class Fehlberg45Solver(GenericExplicitRKODESolver):
     """
-    Класс, реализующий метод Рунге-Кутты-Феленберга
+    Implements the Fehlberg method
     """
     butcher_tableau = np.array([
 
@@ -230,26 +228,7 @@ class Fehlberg45Solver(GenericExplicitRKODESolver):
 
         ], dtype='float')
 
-    name = 'Метод Рунге-Кутты-Феленберга'
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs, butcher_tableau=self.butcher_tableau, name=self.name)
-
-
-class Heun2ODESolver(GenericExplicitRKODESolver):
-    """
-    Класс, реализующий метод Хойна 2 порядка
-    """
-    butcher_tableau = np.array([
-
-        [0,       0,      0],
-        [1,       1,      0],
-
-        [None,    1/2,    1/2]
-
-        ], dtype='float')
-
-    name = 'Метод Хойна 2 порядка'
+    name = 'Fehlberg method'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs, butcher_tableau=self.butcher_tableau, name=self.name)
@@ -257,7 +236,7 @@ class Heun2ODESolver(GenericExplicitRKODESolver):
 
 class Ralston2ODESolver(GenericExplicitRKODESolver):
     """
-    Класс, реализующий метод Рэлстона 2 порядка
+    Implements the Ralston method
     """
     butcher_tableau = np.array([
 
@@ -268,7 +247,7 @@ class Ralston2ODESolver(GenericExplicitRKODESolver):
 
         ], dtype='float')
 
-    name = 'Метод Рэлстона 2 порядка'
+    name = 'Ralston method'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs, butcher_tableau=self.butcher_tableau, name=self.name)
@@ -276,7 +255,7 @@ class Ralston2ODESolver(GenericExplicitRKODESolver):
 
 class RungeKutta3ODESolver(GenericExplicitRKODESolver):
     """
-    Класс, реализующий метод Рунге-Кутты 3-го порядка
+    Implements the third-order Runge–Kutta method
     """
     butcher_tableau = np.array([
 
@@ -288,7 +267,7 @@ class RungeKutta3ODESolver(GenericExplicitRKODESolver):
 
     ], dtype='float')
 
-    name = 'Метод Рунге-Кутты 3-го порядка'
+    name = 'Third-order Runge–Kutta method'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs, butcher_tableau=self.butcher_tableau, name=self.name)
@@ -296,7 +275,7 @@ class RungeKutta3ODESolver(GenericExplicitRKODESolver):
 
 class Heun3ODESolver(GenericExplicitRKODESolver):
     """
-    Класс, реализующий метод Хойна 3-го порядка
+    Implements the Heun third-order method
     """
     butcher_tableau = np.array([
 
@@ -308,7 +287,7 @@ class Heun3ODESolver(GenericExplicitRKODESolver):
 
         ], dtype='float')
 
-    name = 'Метод Хойна 3-го порядка'
+    name = 'Heun third-order method'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs, butcher_tableau=self.butcher_tableau, name=self.name)
@@ -316,7 +295,7 @@ class Heun3ODESolver(GenericExplicitRKODESolver):
 
 class Ralston3ODESolver(GenericExplicitRKODESolver):
     """
-    Класс, реализующий метод Рэлстона 3-го порядка
+    Implements the Ralston third-order method
     """
     butcher_tableau = np.array([
 
@@ -328,7 +307,7 @@ class Ralston3ODESolver(GenericExplicitRKODESolver):
 
         ], dtype='float')
 
-    name = 'Метод Рэлстона 3-го порядка'
+    name = 'Ralston third-order method'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs, butcher_tableau=self.butcher_tableau, name=self.name)
@@ -336,7 +315,7 @@ class Ralston3ODESolver(GenericExplicitRKODESolver):
 
 class SSPRK3ODESolver(GenericExplicitRKODESolver):
     """
-    Класс, реализующий высокостабильный медот Рунге-Кутты 3-го порядка
+    Implements the Third-order Strong Stability Preserving Runge-Kutta method
     """
     butcher_tableau = np.array([
 
@@ -348,7 +327,7 @@ class SSPRK3ODESolver(GenericExplicitRKODESolver):
 
         ], dtype='float')
 
-    name = 'Высокостабильный медот Рунге-Кутты 3-го порядка'
+    name = 'Third-order Strong Stability Preserving Runge-Kutta method'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs, butcher_tableau=self.butcher_tableau, name=self.name)
@@ -356,7 +335,7 @@ class SSPRK3ODESolver(GenericExplicitRKODESolver):
 
 class Ralston4ODESolver(GenericExplicitRKODESolver):
     """
-    Класс, реализующий метод Рэлстона 4-го порядка
+    Implements the Ralston fourth-order method
     """
     butcher_tableau = np.array([
 
@@ -369,7 +348,7 @@ class Ralston4ODESolver(GenericExplicitRKODESolver):
 
         ], dtype='float')
 
-    name = 'Метод Рэлстона 4-го порядка'
+    name = 'Ralston fourth-order method'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs, butcher_tableau=self.butcher_tableau, name=self.name)
@@ -377,7 +356,7 @@ class Ralston4ODESolver(GenericExplicitRKODESolver):
 
 class Rule384ODESolver(GenericExplicitRKODESolver):
     """
-    Класс, реализующий метод правила 3/8 4-го порядка
+    Implements the 3/8-rule fourth-order method
     """
     butcher_tableau = np.array([
 
@@ -390,7 +369,7 @@ class Rule384ODESolver(GenericExplicitRKODESolver):
 
         ], dtype='float')
 
-    name = 'Метод правила 3/8 4-го порядка'
+    name = '3/8-rule fourth-order method'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs, butcher_tableau=self.butcher_tableau, name=self.name)
@@ -398,7 +377,7 @@ class Rule384ODESolver(GenericExplicitRKODESolver):
 
 class HeunEuler21ODESolver(GenericExplicitRKODESolver):
     """
-    Класс, реализующий метод Хойна-Эйлера 2-1-го порядка
+    Implements the Heun–Euler method
     """
     butcher_tableau = np.array([
 
@@ -410,7 +389,7 @@ class HeunEuler21ODESolver(GenericExplicitRKODESolver):
 
         ], dtype='float')
 
-    name = 'Метод Хойна-Эйлера 2-1-го порядка'
+    name = 'Heun–Euler method'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs, butcher_tableau=self.butcher_tableau, name=self.name)
@@ -418,7 +397,7 @@ class HeunEuler21ODESolver(GenericExplicitRKODESolver):
 
 class Fehlberg21ODESolver(GenericExplicitRKODESolver):
     """
-    Класс, реализующий метод Феленберга 2-1-го порядка
+    Implements the Fehlberg RK1(2) method
     """
     butcher_tableau = np.array([
 
@@ -431,7 +410,7 @@ class Fehlberg21ODESolver(GenericExplicitRKODESolver):
 
         ], dtype='float')
 
-    name = 'Метод Феленберга 2-1-го порядка'
+    name = 'Fehlberg RK1(2) method'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs, butcher_tableau=self.butcher_tableau, name=self.name)
@@ -439,7 +418,7 @@ class Fehlberg21ODESolver(GenericExplicitRKODESolver):
 
 class BogackiShampine32ODESolver(GenericExplicitRKODESolver):
     """
-    Класс, реализующий метод Богацкого–Шампина 3-2-го порядка
+    Implements the Bogacki–Shampine method
     """
     butcher_tableau = np.array([
 
@@ -453,7 +432,7 @@ class BogackiShampine32ODESolver(GenericExplicitRKODESolver):
 
         ], dtype='float')
 
-    name = 'Метод Богацкого–Шампина 3-2-го порядка'
+    name = 'Bogacki–Shampine method'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs, butcher_tableau=self.butcher_tableau, name=self.name)
@@ -461,7 +440,7 @@ class BogackiShampine32ODESolver(GenericExplicitRKODESolver):
 
 class CashKarp54ODESolver(GenericExplicitRKODESolver):
     """
-    Класс, реализующий метод Кэша-Карпа 5-4-го порядка
+    Implements the Cash-Karp method
     """
     butcher_tableau = np.array([
 
@@ -477,7 +456,7 @@ class CashKarp54ODESolver(GenericExplicitRKODESolver):
 
         ], dtype='float')
 
-    name = 'Метод Кэша-Карпа 5-4-го порядка'
+    name = 'Cash-Karp method'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs, butcher_tableau=self.butcher_tableau, name=self.name)
@@ -485,7 +464,7 @@ class CashKarp54ODESolver(GenericExplicitRKODESolver):
 
 class DormandPrince54ODESolver(GenericExplicitRKODESolver):
     """
-    Класс, реализующий метод Дорманда-Принса 5-4-го порядка
+    Implements the Dormand–Prince method
     """
     butcher_tableau = np.array([
 
@@ -502,7 +481,7 @@ class DormandPrince54ODESolver(GenericExplicitRKODESolver):
 
         ], dtype='float')
 
-    name = 'Метод Дорманда-Принса 5-4-го порядка'
+    name = 'Dormand–Prince method'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs, butcher_tableau=self.butcher_tableau, name=self.name)
