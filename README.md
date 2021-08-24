@@ -1,6 +1,6 @@
 [![PyPi Version](https://img.shields.io/pypi/v/cleanode.svg?style=flat-square)](https://pypi.org/project/cleanode)
 
-# cleanapi
+# CleanODE
 Сustomized collection of ODE solvers
 
 ____
