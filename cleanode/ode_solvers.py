@@ -485,3 +485,142 @@ class DormandPrince54ODESolver(GenericExplicitRKODESolver):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs, butcher_tableau=self.butcher_tableau, name=self.name)
+
+
+class Everhart7ODESolver:
+    """
+    Implements original 7th order Everhart method:
+    Everhart Е. Implicit single-sequence methods for integrating orbits. //Celestial Mechanics. 1974. 10. P.35-55.
+    """
+    name = '7th order Everhart method'
+
+    def __init__(self, f: Callable,
+                 u0: Union[List, float],
+                 t0: float,
+                 tmax: float,
+                 dt0: float,
+                 butcher_tableau=None,
+                 name='7th order Everhart method',
+                 is_adaptive_step=False):
+        """
+        :param f: function for calculating right parts
+        :type f: Callable
+        :param u0: initial conditions
+        :type u0: Union[List, float]
+        :param t0: lower limit of integration
+        :type t0: float
+        :param tmax: upper limit of integration
+        :type tmax: float
+        :param dt0: initial step of integration
+        :type dt0: float
+        :param butcher_tableau: Butcher tableau
+        :type butcher_tableau: np.array
+        :param name: method name
+        :type name: string
+        :param is_adaptive_step: use adaptive time step
+        :type is_adaptive_step: bool
+        """
+
+        self.f = f
+        self.name = name
+        # self.butcher_tableau = butcher_tableau
+
+        # if self.butcher_tableau is None:
+        #     raise ValueError('Butcher tableau is not defined')
+
+        # if len(self.butcher_tableau[0]) == len(self.butcher_tableau):
+        #     self.c = butcher_tableau[:-1, 0]
+        #     self.b = butcher_tableau[-1, 1:]
+        #     self.b1 = None
+        #     self.a = butcher_tableau[:-1, 1:]
+        # elif len(self.butcher_tableau[0]) == len(self.butcher_tableau) - 1:  # есть дополнительная строка b1 для
+        #     # проверки точности решения на шаге
+        #     self.c = butcher_tableau[:-2, 0]
+        #     self.b = butcher_tableau[-2, 1:]
+        #     self.b1 = butcher_tableau[-1, 1:]
+        #     self.a = butcher_tableau[:-2, 1:]
+        # else:
+        #     raise ValueError('Butcher tableau has invalid form')
+
+        # if (np.count_nonzero(np.triu(self.a))) > 0:
+        #     raise ValueError('There are non-zero elements in the upper triangle of the matrix a in the Butcher tableau.'
+        #                      ' It is not allowed for an explicit Runge-Kutta method.')
+
+        self.is_adaptive_step = is_adaptive_step
+
+        self.u = None
+        self.n = None
+        self.dt = dt0
+        self.tmax = tmax
+        self.t0 = tmax
+        self.dt0 = t0
+
+        self.t = np.array([t0])
+
+        if isinstance(u0, (float, int)):  # scalar ODE
+            u0 = np.float(u0)
+            self.ode_system_size = 1
+        else:  # ODE system
+            u0 = np.asarray(u0)
+            self.ode_system_size = u0.size
+
+        self.u0 = u0
+    # def __init__(self, *args, **kwargs):
+    #     super().__init__(*args, **kwargs, name=self.name)
+
+    # noinspection PyUnusedLocal
+    @benchmark
+    def solve(self, print_benchmark=False, benchmark_name='') -> Tuple[np.ndarray, np.ndarray]:
+        """
+        ODE solution
+        :param print_benchmark: output the execution time to the console
+        :type print_benchmark: bool
+        :param benchmark_name: name of the benchmark to output
+        :type benchmark_name: string
+        :return: solution, time
+        :rtype: Type[np.ndarray, np.ndarray]
+        """
+
+        if self.ode_system_size == 1:  # scalar ODEs
+            self.u = np.array([self.u0])
+        else:  # systems of ODEs
+            self.u = np.zeros((1, self.ode_system_size))
+            self.u[0] = self.u0
+
+        i = 0
+        while self.t[i] <= self.tmax:
+            self.n = i
+            u_next = self._step()
+            self.u = np.vstack([self.u, u_next])
+            i += 1
+
+        if self.is_adaptive_step:
+            # 2do: for the adaptive step: to implement the final interpolation on a uniform grid with dt0 step
+            pass
+
+        return self.u, self.t
+
+    def _step(self) -> np.ndarray:
+        """
+        One-step integration solution
+        :return: solution
+        :rtype: float
+        """
+        u, f, n, t, dt = self.u, self.f, self.n, self.t, self.dt
+
+        # stub
+        unew = u[n]
+
+        self.t = np.append(self.t, self.t[-1] + self.dt)
+        self._change_dt()
+
+        return unew
+
+    def _change_dt(self) -> None:
+        """
+        Adaptive algorithm for changing the step by an additional row self.b1 of the Butcher tableau
+        """
+        if self.is_adaptive_step:
+            # 2do: to implement
+            raise ValueError('is_adaptive_step==True is not supported yet')
+            # self.dt = ...

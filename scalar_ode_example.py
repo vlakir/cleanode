@@ -33,8 +33,11 @@ if __name__ == '__main__':
     # initial condition:
     u0 = 1
 
-    solver = RungeKutta4ODESolver(f, u0, t0, tmax, dt0, is_adaptive_step=False)
+    # solver = RungeKutta4ODESolver(f, u0, t0, tmax, dt0, is_adaptive_step=False)
+    solver = Everhart7ODESolver(f, u0, t0, tmax, dt0, is_adaptive_step=False)
+
     u3, t3 = solver.solve(print_benchmark=True, benchmark_name=solver.name)
+
     plt.plot(t3, u3, label=solver.name)
 
     points_number = int((tmax - t0) / dt0)
