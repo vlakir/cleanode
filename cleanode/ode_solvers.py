@@ -4,6 +4,10 @@ from typing import Union, List
 from funnydeco import benchmark
 
 
+def line_extrapolation(x, x1, x2, y1, y2) -> float:
+    return y1 + (y2 - y1) / (x2 - x1) * (x - x1)
+
+
 class GenericExplicitRKODESolver:
     """
     Core class implements explicit Runge-Kutta methods
@@ -492,15 +496,26 @@ class Everhart7ODESolver:
     Implements original 7th order Everhart method:
     Everhart Е. Implicit single-sequence methods for integrating orbits. //Celestial Mechanics. 1974. 10. P.35-55.
     """
-    name = '7th order Everhart method'
+    name = '15th order Everhart method'
+
+    # 2do: уточнить последние цифры в соотв. со статьей Эверхарта
+    h = np.array([
+                    0.000000000000000000,
+                    0.056262560526922147,
+                    0.180240691736892365,
+                    0.352624717113169637,
+                    0.547153626330555383,
+                    0.734210177215410532,
+                    0.885320946839095768,
+                    0.977520613561287501
+                ], dtype='longdouble')
 
     def __init__(self, f: Callable,
                  u0: Union[List, float],
                  t0: float,
                  tmax: float,
                  dt0: float,
-                 butcher_tableau=None,
-                 name='7th order Everhart method',
+                 name='15th order Everhart method',
                  is_adaptive_step=False):
         """
         :param f: function for calculating right parts
@@ -513,38 +528,13 @@ class Everhart7ODESolver:
         :type tmax: float
         :param dt0: initial step of integration
         :type dt0: float
-        :param butcher_tableau: Butcher tableau
-        :type butcher_tableau: np.array
         :param name: method name
         :type name: string
         :param is_adaptive_step: use adaptive time step
         :type is_adaptive_step: bool
         """
-
         self.f = f
         self.name = name
-        # self.butcher_tableau = butcher_tableau
-
-        # if self.butcher_tableau is None:
-        #     raise ValueError('Butcher tableau is not defined')
-
-        # if len(self.butcher_tableau[0]) == len(self.butcher_tableau):
-        #     self.c = butcher_tableau[:-1, 0]
-        #     self.b = butcher_tableau[-1, 1:]
-        #     self.b1 = None
-        #     self.a = butcher_tableau[:-1, 1:]
-        # elif len(self.butcher_tableau[0]) == len(self.butcher_tableau) - 1:  # есть дополнительная строка b1 для
-        #     # проверки точности решения на шаге
-        #     self.c = butcher_tableau[:-2, 0]
-        #     self.b = butcher_tableau[-2, 1:]
-        #     self.b1 = butcher_tableau[-1, 1:]
-        #     self.a = butcher_tableau[:-2, 1:]
-        # else:
-        #     raise ValueError('Butcher tableau has invalid form')
-
-        # if (np.count_nonzero(np.triu(self.a))) > 0:
-        #     raise ValueError('There are non-zero elements in the upper triangle of the matrix a in the Butcher tableau.'
-        #                      ' It is not allowed for an explicit Runge-Kutta method.')
 
         self.is_adaptive_step = is_adaptive_step
 
@@ -606,7 +596,53 @@ class Everhart7ODESolver:
         :return: solution
         :rtype: float
         """
-        u, f, n, t, dt = self.u, self.f, self.n, self.t, self.dt
+        u, f, n, t, dt, h = self.u, self.f, self.n, self.t, self.dt, self.h
+        tau = h * dt
+
+        c = np.zeros([len(h), len(h)], dtype='longdouble')
+
+        for i in range(len(h)):
+            for j in range(len(h)):
+                if i == j:
+                    c[i, j] = 1
+                elif (j == 0) and (i > 0):
+                    c[i, j] = -tau[i] * c[i - 1, j]
+                elif 0 < j < i:
+                    c[i, j] = c[i - 1, j - 1] - tau[i] * c[i - 1, j]
+
+        # from third_party_libs.table_it import print_table
+        # print_table(c)
+
+        a = np.zeros([len(h)], dtype='longdouble')
+        u_tau = np.zeros([len(h)], dtype='longdouble')
+        f_tau = np.zeros([len(h)], dtype='longdouble')
+        alfa = np.zeros([len(h)], dtype='longdouble')
+
+        u_tau[0] = u[n]
+        f_tau[0] = f(u_tau[0], t)
+
+        if n > 0:
+            u_tau[1] = line_extrapolation(tau[1], t[n-1], u[n - 1], t[n], u[n])
+        else:
+            # в точке t0 еще нет предыдущих данных для экстраполяции
+            u_tau[1] = u[n]
+
+            
+
+
+
+        f_tau[1] = f(u_tau[1], tau[1])
+
+        alfa[0] = (f_tau[1] - f_tau[0]) / tau[1]
+
+        for i in range(len(h)):
+            a[i] = alfa[0]
+            for j in range(len(h)):
+                a[i] += c[j, i] * alfa[j + 1]
+
+        print(a)
+
+
 
         # stub
         unew = u[n]
