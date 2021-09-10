@@ -510,9 +510,6 @@ class Everhart7ODESolver:
     polynomial_coeffs_u = np.array([1, 1, 1 / 2, 1 / 6, 1 / 12, 1 / 20, 1 / 30, 1 / 42, 1 / 56, 1 / 72],
                                    dtype='longdouble')
 
-    polynomial_coeffs_du = np.array([1, 1, 1 / 2, 1 / 3, 1 / 4, 1 / 5, 1 / 6, 1 / 7, 1 / 8],
-                                    dtype='longdouble')
-
     def __init__(self, f2: Callable,
                  u0: Union[List, float],
                  du_dt0: Union[List, float],
@@ -539,7 +536,7 @@ class Everhart7ODESolver:
         :param is_adaptive_step: use adaptive time step
         :type is_adaptive_step: bool
         """
-        self.f = f2
+        self.f2 = f2
         self.name = name
 
         self.is_adaptive_step = is_adaptive_step
@@ -610,13 +607,18 @@ class Everhart7ODESolver:
         :return: solution
         :rtype: float
         """
+        def _u_du(time):
+            u_result = p_u[0] * u_tau[0] + p_u[1] * du_dt_tau[0] * time + p_u[2] * f_tau[0] * time ** 2
+            du_result = du_dt_tau[0] + f_tau[0] * time
+            for jj in range(size):
+                u_result += p_u[jj + 3] * a[jj] * time ** (jj + 3)
+                du_result += a[jj] * time ** (jj + 2) / (jj + 2)
+            return u_result, du_result
+
         def _correct_u_du() -> None:
             for ii in range(size):
-                u_tau[ii] = p_u[0] * u_tau[0] + p_u[1] * du_dt_tau[0] * tau[1] + p_u[2] * f_tau[0] * tau[1] ** 2
-                du_dt_tau[ii] = p_du[0] * du_dt_tau[0] + p_du[1] * f_tau[0]
-                for jj in range(size):
-                    u_tau[ii] += p_u[jj + 3] * a[jj] * tau[ii] ** (jj + 3)
-                    du_dt_tau[ii] += p_du[jj + 2] * a[jj] * tau[ii] ** (jj + 2)
+                u_tau[ii], du_dt_tau[ii] = _u_du(tau[ii])
+                f_tau[ii] = f(u_tau[ii], tau[ii])
 
         def _correct_a() -> None:
             for ii in range(size):
@@ -624,13 +626,24 @@ class Everhart7ODESolver:
                 for jj in range(size):
                     a[ii] += c[jj, ii] * alfa[jj]
 
-        # 2do:
-        def _correct_alfa() -> None:
-            pass
+        def div_dif(nn):
+            result = 0
+            for jj in range(nn + 1):
+                product = 1
+                for ii in range(nn + 1):
+                    if jj != ii:
+                        product *= tau[jj] - tau[ii]
+                result += f_tau[jj] / product
+            return result
 
-        u, du_dt, f, n, t, dt, h, p_u, p_du = self.u, self.du_dt, self.f, self.n, self.t, self.dt, self.h, \
-                                                   self.polynomial_coeffs_u, self.polynomial_coeffs_du
+        def _correct_alfa() -> None:
+            for ii in range(size):
+                alfa[ii] = div_dif(ii + 1)
+
+        u, du_dt, f, n, t, dt, h, p_u = self.u, self.du_dt, self.f2, self.n, self.t, self.dt, self.h, \
+                                        self.polynomial_coeffs_u
         tau = h * dt
+        f_tau = np.zeros([len(h)], dtype='longdouble')
 
         size = len(h) - 1
 
@@ -650,8 +663,6 @@ class Everhart7ODESolver:
 
         u_tau = np.zeros([size], dtype='longdouble')
         du_dt_tau = np.zeros([size], dtype='longdouble')
-
-        f_tau = np.zeros([size], dtype='longdouble')
         a = np.zeros([size], dtype='longdouble')
         alfa = np.zeros([size], dtype='longdouble')
 
@@ -659,24 +670,41 @@ class Everhart7ODESolver:
         u_tau[0] = u[n]
         du_dt_tau[0] = du_dt[n]
 
+        print(du_dt_tau[0])
+
         # тут должен начинаться цикл ################################################################
 
-        f_tau[0] = f(u_tau[0], t)
+        for i in range(3):
+            f_tau[0] = f(u_tau[0], tau[0])
 
-        # вычисляем u_tau[1] и du_dt_tau[1]
-        _correct_u_du()
+            # вычисляем u_tau[1] и du_dt_tau[1]
+            _correct_u_du()
 
-        f_tau[1] = f(u_tau[1], tau[1])
-        alfa[0] = (f_tau[1] - f_tau[0]) / tau[1]
+            # f_tau[1] = f(u_tau[1], tau[1])
+            _correct_alfa()
 
-        _correct_a()
-        _correct_u_du()
+            _correct_a()
+            _correct_u_du()
 
-        print(du_dt_tau)
+            # print(i, a)
+
+            # print(i, u_tau, du_dt_tau)
+
+            # print(f_tau)
+
+
+        # print(tau)
+
+        print(u_tau, du_dt_tau)
+
+
+        # u_new, du_dt_new = _u_du(dt)
 
         # stub
         u_new = u[n]
         du_dt_new = du_dt[n]
+
+        # print(u_new, du_dt_new)
 
         self.t = np.append(self.t, self.t[-1] + self.dt)
         self._change_dt()
