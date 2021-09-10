@@ -53,16 +53,18 @@ if __name__ == '__main__':
     tmax = 3
     dt0 = 0.3
 
-    # initial condition:
-    u0 = 1
-
     points_number = int((tmax - t0) / dt0)
     time_exact = np.linspace(t0, tmax, points_number * 10)
 
-    # solver = RungeKutta4ODESolver(f, u0, t0, tmax, dt0, is_adaptive_step=False)
+    # # initial condition:
+    # u0 = 1
+    # solver = RungeKutta4ODESolver(f2, u0, t0, tmax, dt0, is_adaptive_step=False)
     # u_exact = np.exp(time_exact)
 
-    solver = Everhart7ODESolver(f2, u0, t0, tmax, dt0, is_adaptive_step=False)
+    # initial condition:
+    u0 = 1  # начальное положение
+    du_dt0 = 0  # начальная скорость
+    solver = Everhart7ODESolver(f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=False)
     u_exact = u0 - const.g * time_exact
 
     u3, t3 = solver.solve(print_benchmark=True, benchmark_name=solver.name)

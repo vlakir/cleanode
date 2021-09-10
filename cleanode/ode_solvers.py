@@ -4,14 +4,11 @@ from typing import Union, List
 from funnydeco import benchmark
 
 
-def line_extrapolation(x, x1, x2, y1, y2) -> float:
-    return y1 + (y2 - y1) / (x2 - x1) * (x - x1)
-
-
 class GenericExplicitRKODESolver:
     """
     Core class implements explicit Runge-Kutta methods
     """
+
     def __init__(self, f: Callable,
                  u0: Union[List, float],
                  t0: float,
@@ -21,7 +18,7 @@ class GenericExplicitRKODESolver:
                  name='method name is not defined',
                  is_adaptive_step=False):
         """
-        :param f: function for calculating right parts
+        :param f: function for calculating right parts of 1st order ODE
         :type f: Callable
         :param u0: initial conditions
         :type u0: Union[List, float]
@@ -106,7 +103,7 @@ class GenericExplicitRKODESolver:
         i = 0
         while self.t[i] <= self.tmax:
             self.n = i
-            u_next = self._step()
+            u_next = self._do_step()
             self.u = np.vstack([self.u, u_next])
             i += 1
 
@@ -116,7 +113,7 @@ class GenericExplicitRKODESolver:
 
         return self.u, self.t
 
-    def _step(self) -> np.ndarray:
+    def _do_step(self) -> np.ndarray:
         """
         One-step integration solution
         :return: solution
@@ -162,11 +159,11 @@ class EulerODESolver(GenericExplicitRKODESolver):
     """
     butcher_tableau = np.array([
 
-        [0,         0],
+        [0, 0],
 
-        [None,      1]
+        [None, 1]
 
-        ], dtype='float')
+    ], dtype='float')
 
     name = 'Euler method'
 
@@ -180,12 +177,12 @@ class MidpointODESolver(GenericExplicitRKODESolver):
     """
     butcher_tableau = np.array([
 
-        [0,     0,      0],
-        [1/2,   1/2,    0],
+        [0, 0, 0],
+        [1 / 2, 1 / 2, 0],
 
-        [None,  0,      1]
+        [None, 0, 1]
 
-        ], dtype='float')
+    ], dtype='float')
 
     name = 'Explicit midpoint method'
 
@@ -199,14 +196,14 @@ class RungeKutta4ODESolver(GenericExplicitRKODESolver):
     """
     butcher_tableau = np.array([
 
-        [0,         0,      0,      0,      0],
-        [1/2,       1/2,    0,      0,      0],
-        [1/2,       0,      1/2,    0,      0],
-        [1,         0,      0,      1,      0],
+        [0, 0, 0, 0, 0],
+        [1 / 2, 1 / 2, 0, 0, 0],
+        [1 / 2, 0, 1 / 2, 0, 0],
+        [1, 0, 0, 1, 0],
 
-        [None,      1/6,    1/3,    1/3,    1/6]
+        [None, 1 / 6, 1 / 3, 1 / 3, 1 / 6]
 
-        ], dtype='float')
+    ], dtype='float')
 
     name = 'Fourth-order Runge–Kutta method'
 
@@ -220,17 +217,17 @@ class Fehlberg45Solver(GenericExplicitRKODESolver):
     """
     butcher_tableau = np.array([
 
-        [0,             0,              0,              0,              0,              0,              0],
-        [1/4,           1/4,            0,              0,              0,              0,              0],
-        [3/8,           3/32,           9/32,           0,              0,              0,              0],
-        [12/13,         1932/2197,      -7200/2197,     7296/2197,      0,              0,              0],
-        [1,             439/216,        -8,             3680/513,       -845/4104,      0,              0],
-        [1/2,           -8/27,          2,              -3544/2565,     1859/4104,      -11/40,         0],
+        [0, 0, 0, 0, 0, 0, 0],
+        [1 / 4, 1 / 4, 0, 0, 0, 0, 0],
+        [3 / 8, 3 / 32, 9 / 32, 0, 0, 0, 0],
+        [12 / 13, 1932 / 2197, -7200 / 2197, 7296 / 2197, 0, 0, 0],
+        [1, 439 / 216, -8, 3680 / 513, -845 / 4104, 0, 0],
+        [1 / 2, -8 / 27, 2, -3544 / 2565, 1859 / 4104, -11 / 40, 0],
 
-        [None,          16/135,         0,              6656/12825,     28561/56430,    -9/50,          2/55],
-        [None,          25/216,         0,              1408/2565,      2197/4104,      -1/5,           0]
+        [None, 16 / 135, 0, 6656 / 12825, 28561 / 56430, -9 / 50, 2 / 55],
+        [None, 25 / 216, 0, 1408 / 2565, 2197 / 4104, -1 / 5, 0]
 
-        ], dtype='float')
+    ], dtype='float')
 
     name = 'Fehlberg method'
 
@@ -244,12 +241,12 @@ class Ralston2ODESolver(GenericExplicitRKODESolver):
     """
     butcher_tableau = np.array([
 
-        [0,         0,      0],
-        [2/3,       2/3,    0],
+        [0, 0, 0],
+        [2 / 3, 2 / 3, 0],
 
-        [None,      1/4,    3/4]
+        [None, 1 / 4, 3 / 4]
 
-        ], dtype='float')
+    ], dtype='float')
 
     name = 'Ralston method'
 
@@ -263,11 +260,11 @@ class RungeKutta3ODESolver(GenericExplicitRKODESolver):
     """
     butcher_tableau = np.array([
 
-        [0,       0,      0,      0],
-        [1/2,     1/2,    0,      0],
-        [1,       -1,     2,      0],
+        [0, 0, 0, 0],
+        [1 / 2, 1 / 2, 0, 0],
+        [1, -1, 2, 0],
 
-        [None,    1/6,    2/3,    1/6]
+        [None, 1 / 6, 2 / 3, 1 / 6]
 
     ], dtype='float')
 
@@ -283,13 +280,13 @@ class Heun3ODESolver(GenericExplicitRKODESolver):
     """
     butcher_tableau = np.array([
 
-        [0,       0,      0,      0],
-        [1/3,     1/3,    0,      0],
-        [2/3,     0,      2/3,    0],
+        [0, 0, 0, 0],
+        [1 / 3, 1 / 3, 0, 0],
+        [2 / 3, 0, 2 / 3, 0],
 
-        [None,    1/4,    0,      3/4]
+        [None, 1 / 4, 0, 3 / 4]
 
-        ], dtype='float')
+    ], dtype='float')
 
     name = 'Heun third-order method'
 
@@ -303,13 +300,13 @@ class Ralston3ODESolver(GenericExplicitRKODESolver):
     """
     butcher_tableau = np.array([
 
-        [0,       0,      0,      0],
-        [1/2,     1/2,    0,      0],
-        [3/4,     0,      3/4,    0],
+        [0, 0, 0, 0],
+        [1 / 2, 1 / 2, 0, 0],
+        [3 / 4, 0, 3 / 4, 0],
 
-        [None,    2/9,    1/3,    4/9]
+        [None, 2 / 9, 1 / 3, 4 / 9]
 
-        ], dtype='float')
+    ], dtype='float')
 
     name = 'Ralston third-order method'
 
@@ -323,13 +320,13 @@ class SSPRK3ODESolver(GenericExplicitRKODESolver):
     """
     butcher_tableau = np.array([
 
-        [0,       0,      0,      0],
-        [1,       1,      0,      0],
-        [1/2,     1/4,    1/4,    0],
+        [0, 0, 0, 0],
+        [1, 1, 0, 0],
+        [1 / 2, 1 / 4, 1 / 4, 0],
 
-        [None,    1/6,    1/6,    2/3]
+        [None, 1 / 6, 1 / 6, 2 / 3]
 
-        ], dtype='float')
+    ], dtype='float')
 
     name = 'Third-order Strong Stability Preserving Runge-Kutta method'
 
@@ -343,14 +340,14 @@ class Ralston4ODESolver(GenericExplicitRKODESolver):
     """
     butcher_tableau = np.array([
 
-        [0,             0,             0,              0,             0],
-        [0.4,           0.4,           0,              0,             0],
-        [0.45573725,    0.29697761,    0.15875964,     0,             0],
-        [1,             0.21810040,    -3.05096516,    3.83286476,    0],
+        [0, 0, 0, 0, 0],
+        [0.4, 0.4, 0, 0, 0],
+        [0.45573725, 0.29697761, 0.15875964, 0, 0],
+        [1, 0.21810040, -3.05096516, 3.83286476, 0],
 
-        [None,          0.17476028,    -0.55148066,    1.20553560,    0.17118476]
+        [None, 0.17476028, -0.55148066, 1.20553560, 0.17118476]
 
-        ], dtype='float')
+    ], dtype='float')
 
     name = 'Ralston fourth-order method'
 
@@ -364,14 +361,14 @@ class Rule384ODESolver(GenericExplicitRKODESolver):
     """
     butcher_tableau = np.array([
 
-        [0,       0,       0,      0,      0],
-        [1/3,     1/3,     0,      0,      0],
-        [2/3,     -1/3,    1,    0,      0],
-        [1,       1,       -1,     1,      0],
+        [0, 0, 0, 0, 0],
+        [1 / 3, 1 / 3, 0, 0, 0],
+        [2 / 3, -1 / 3, 1, 0, 0],
+        [1, 1, -1, 1, 0],
 
-        [None,    1/8,     3/8,    3/8,    1/8]
+        [None, 1 / 8, 3 / 8, 3 / 8, 1 / 8]
 
-        ], dtype='float')
+    ], dtype='float')
 
     name = '3/8-rule fourth-order method'
 
@@ -385,13 +382,13 @@ class HeunEuler21ODESolver(GenericExplicitRKODESolver):
     """
     butcher_tableau = np.array([
 
-        [0,       0,      0],
-        [1,       1,      0],
+        [0, 0, 0],
+        [1, 1, 0],
 
-        [None,    1/2,    1/2],
-        [None,    1,      0]
+        [None, 1 / 2, 1 / 2],
+        [None, 1, 0]
 
-        ], dtype='float')
+    ], dtype='float')
 
     name = 'Heun–Euler method'
 
@@ -405,14 +402,14 @@ class Fehlberg21ODESolver(GenericExplicitRKODESolver):
     """
     butcher_tableau = np.array([
 
-        [0,       0,        0,          0],
-        [1/2,     1/2,      0,          0],
-        [1,       1/256,    255/256,    0],
+        [0, 0, 0, 0],
+        [1 / 2, 1 / 2, 0, 0],
+        [1, 1 / 256, 255 / 256, 0],
 
-        [None,    1/512,    255/256,    1/512],
-        [None,    1/256,    255/256,    0]
+        [None, 1 / 512, 255 / 256, 1 / 512],
+        [None, 1 / 256, 255 / 256, 0]
 
-        ], dtype='float')
+    ], dtype='float')
 
     name = 'Fehlberg RK1(2) method'
 
@@ -426,15 +423,15 @@ class BogackiShampine32ODESolver(GenericExplicitRKODESolver):
     """
     butcher_tableau = np.array([
 
-        [0,       0,       0,      0,      0],
-        [1/2,     1/2,     0,      0,      0],
-        [3/4,     0,       3/4,    0,      0],
-        [1,       2/9,     1/3,    4/9,    0],
+        [0, 0, 0, 0, 0],
+        [1 / 2, 1 / 2, 0, 0, 0],
+        [3 / 4, 0, 3 / 4, 0, 0],
+        [1, 2 / 9, 1 / 3, 4 / 9, 0],
 
-        [None,    2/9,     1/3,    4/9,    0],
-        [None,    7/24,    1/4,    1/3,    1/8]
+        [None, 2 / 9, 1 / 3, 4 / 9, 0],
+        [None, 7 / 24, 1 / 4, 1 / 3, 1 / 8]
 
-        ], dtype='float')
+    ], dtype='float')
 
     name = 'Bogacki–Shampine method'
 
@@ -448,17 +445,17 @@ class CashKarp54ODESolver(GenericExplicitRKODESolver):
     """
     butcher_tableau = np.array([
 
-        [0,       0,             0,          0,              0,               0,            0],
-        [1/5,     1/5,           0,          0,              0,               0,            0],
-        [3/10,    3/40,          9/40,       0,              0,               0,            0],
-        [3/5,     3/10,          -9/10,      6/5,            0,               0,            0],
-        [1,       -11/54,        5/2,        -70/27,         35/27,           0,            0],
-        [7/8,     1631/55296,    175/512,    575/13824,      44275/110592,    253/4096,     0],
+        [0, 0, 0, 0, 0, 0, 0],
+        [1 / 5, 1 / 5, 0, 0, 0, 0, 0],
+        [3 / 10, 3 / 40, 9 / 40, 0, 0, 0, 0],
+        [3 / 5, 3 / 10, -9 / 10, 6 / 5, 0, 0, 0],
+        [1, -11 / 54, 5 / 2, -70 / 27, 35 / 27, 0, 0],
+        [7 / 8, 1631 / 55296, 175 / 512, 575 / 13824, 44275 / 110592, 253 / 4096, 0],
 
-        [None,    37/378,        0,          250/621, 	     125/594,         0,            512/1771],
-        [None,    2825/27648,    0,          18575/48384,    13525/55296,     277/14336,    1/4]
+        [None, 37 / 378, 0, 250 / 621, 125 / 594, 0, 512 / 1771],
+        [None, 2825 / 27648, 0, 18575 / 48384, 13525 / 55296, 277 / 14336, 1 / 4]
 
-        ], dtype='float')
+    ], dtype='float')
 
     name = 'Cash-Karp method'
 
@@ -472,18 +469,18 @@ class DormandPrince54ODESolver(GenericExplicitRKODESolver):
     """
     butcher_tableau = np.array([
 
-        [0,       0,             0,              0,             0,           0,                0,           0],
-        [1/5,     1/5,           0,              0,             0,           0,                0,           0],
-        [3/10,    3/40,          9/40,           0,             0,           0,                0,           0],
-        [4/5,     44/45,         -56/15,         32/9,          0,           0,                0,           0],
-        [8/9,     19372/6561,    -25360/2187,    64448/6561,    -212/729,    0,                0,           0],
-        [1,       9017/3168,     -355/33,        46732/5247,    49/176,      -5103/18656,      0,           0],
-        [1,       35/384,        0,              500/1113,      125/192,     -2187/6784,       11/84,       0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [1 / 5, 1 / 5, 0, 0, 0, 0, 0, 0],
+        [3 / 10, 3 / 40, 9 / 40, 0, 0, 0, 0, 0],
+        [4 / 5, 44 / 45, -56 / 15, 32 / 9, 0, 0, 0, 0],
+        [8 / 9, 19372 / 6561, -25360 / 2187, 64448 / 6561, -212 / 729, 0, 0, 0],
+        [1, 9017 / 3168, -355 / 33, 46732 / 5247, 49 / 176, -5103 / 18656, 0, 0],
+        [1, 35 / 384, 0, 500 / 1113, 125 / 192, -2187 / 6784, 11 / 84, 0],
 
-        [None,    35/384,        0,              500/1113,      125/192,     -2187/6784,       11/84,       0],
-        [None,    5179/57600,    0,              7571/16695,    393/640,     -92097/339200,    187/2100,    1/40]
+        [None, 35 / 384, 0, 500 / 1113, 125 / 192, -2187 / 6784, 11 / 84, 0],
+        [None, 5179 / 57600, 0, 7571 / 16695, 393 / 640, -92097 / 339200, 187 / 2100, 1 / 40]
 
-        ], dtype='float')
+    ], dtype='float')
 
     name = 'Dormand–Prince method'
 
@@ -500,28 +497,37 @@ class Everhart7ODESolver:
 
     # 2do: уточнить последние цифры в соотв. со статьей Эверхарта
     h = np.array([
-                    0.000000000000000000,
-                    0.056262560526922147,
-                    0.180240691736892365,
-                    0.352624717113169637,
-                    0.547153626330555383,
-                    0.734210177215410532,
-                    0.885320946839095768,
-                    0.977520613561287501
-                ], dtype='longdouble')
+        0.000000000000000000,
+        0.056262560526922147,
+        0.180240691736892365,
+        0.352624717113169637,
+        0.547153626330555383,
+        0.734210177215410532,
+        0.885320946839095768,
+        0.977520613561287501
+    ], dtype='longdouble')
 
-    def __init__(self, f: Callable,
+    polynomial_coeffs_u = np.array([1, 1, 1 / 2, 1 / 6, 1 / 12, 1 / 20, 1 / 30, 1 / 42, 1 / 56, 1 / 72],
+                                   dtype='longdouble')
+
+    polynomial_coeffs_du = np.array([1, 1, 1 / 2, 1 / 3, 1 / 4, 1 / 5, 1 / 6, 1 / 7, 1 / 8],
+                                    dtype='longdouble')
+
+    def __init__(self, f2: Callable,
                  u0: Union[List, float],
+                 du_dt0: Union[List, float],
                  t0: float,
                  tmax: float,
                  dt0: float,
                  name='15th order Everhart method',
                  is_adaptive_step=False):
         """
-        :param f: function for calculating right parts
-        :type f: Callable
-        :param u0: initial conditions
+        :param f2: function for calculating right parts of 2nd order ODE
+        :type f2: Callable
+        :param u0: initial conditions of required function
         :type u0: Union[List, float]
+        :param du_dt0: initial conditions of required function's derivative
+        :type du_dt0: Union[List, float]
         :param t0: lower limit of integration
         :type t0: float
         :param tmax: upper limit of integration
@@ -533,12 +539,13 @@ class Everhart7ODESolver:
         :param is_adaptive_step: use adaptive time step
         :type is_adaptive_step: bool
         """
-        self.f = f
+        self.f = f2
         self.name = name
 
         self.is_adaptive_step = is_adaptive_step
 
         self.u = None
+        self.du_dt = None
         self.n = None
         self.dt = dt0
         self.tmax = tmax
@@ -555,6 +562,8 @@ class Everhart7ODESolver:
             self.ode_system_size = u0.size
 
         self.u0 = u0
+        self.du_dt0 = du_dt0
+
     # def __init__(self, *args, **kwargs):
     #     super().__init__(*args, **kwargs, name=self.name)
 
@@ -573,15 +582,20 @@ class Everhart7ODESolver:
 
         if self.ode_system_size == 1:  # scalar ODEs
             self.u = np.array([self.u0])
+            self.du_dt = np.array([self.du_dt0])
         else:  # systems of ODEs
             self.u = np.zeros((1, self.ode_system_size))
+            self.du_dt = np.zeros((1, self.ode_system_size))
             self.u[0] = self.u0
+            self.du_dt[0] = self.du_dt0
 
         i = 0
         while self.t[i] <= self.tmax:
             self.n = i
-            u_next = self._step()
+            u_next, du_dt_next = self._do_step()
             self.u = np.vstack([self.u, u_next])
+            self.du_dt = np.vstack([self.du_dt, du_dt_next])
+
             i += 1
 
         if self.is_adaptive_step:
@@ -590,19 +604,40 @@ class Everhart7ODESolver:
 
         return self.u, self.t
 
-    def _step(self) -> np.ndarray:
+    def _do_step(self) -> Tuple[np.ndarray, np.ndarray]:
         """
         One-step integration solution
         :return: solution
         :rtype: float
         """
-        u, f, n, t, dt, h = self.u, self.f, self.n, self.t, self.dt, self.h
+        def _correct_u_du() -> None:
+            for ii in range(size):
+                u_tau[ii] = p_u[0] * u_tau[0] + p_u[1] * du_dt_tau[0] * tau[1] + p_u[2] * f_tau[0] * tau[1] ** 2
+                du_dt_tau[ii] = p_du[0] * du_dt_tau[0] + p_du[1] * f_tau[0]
+                for jj in range(size):
+                    u_tau[ii] += p_u[jj + 3] * a[jj] * tau[ii] ** (jj + 3)
+                    du_dt_tau[ii] += p_du[jj + 2] * a[jj] * tau[ii] ** (jj + 2)
+
+        def _correct_a() -> None:
+            for ii in range(size):
+                a[ii] = alfa[ii]
+                for jj in range(size):
+                    a[ii] += c[jj, ii] * alfa[jj]
+
+        # 2do:
+        def _correct_alfa() -> None:
+            pass
+
+        u, du_dt, f, n, t, dt, h, p_u, p_du = self.u, self.du_dt, self.f, self.n, self.t, self.dt, self.h, \
+                                                   self.polynomial_coeffs_u, self.polynomial_coeffs_du
         tau = h * dt
 
-        c = np.zeros([len(h), len(h)], dtype='longdouble')
+        size = len(h) - 1
 
-        for i in range(len(h)):
-            for j in range(len(h)):
+        c = np.zeros([size, size], dtype='longdouble')
+
+        for i in range(size):
+            for j in range(size):
                 if i == j:
                     c[i, j] = 1
                 elif (j == 0) and (i > 0):
@@ -613,44 +648,40 @@ class Everhart7ODESolver:
         # from third_party_libs.table_it import print_table
         # print_table(c)
 
-        a = np.zeros([len(h)], dtype='longdouble')
-        u_tau = np.zeros([len(h)], dtype='longdouble')
-        f_tau = np.zeros([len(h)], dtype='longdouble')
-        alfa = np.zeros([len(h)], dtype='longdouble')
+        u_tau = np.zeros([size], dtype='longdouble')
+        du_dt_tau = np.zeros([size], dtype='longdouble')
 
+        f_tau = np.zeros([size], dtype='longdouble')
+        a = np.zeros([size], dtype='longdouble')
+        alfa = np.zeros([size], dtype='longdouble')
+
+        # инициализация:
         u_tau[0] = u[n]
+        du_dt_tau[0] = du_dt[n]
+
+        # тут должен начинаться цикл ################################################################
+
         f_tau[0] = f(u_tau[0], t)
 
-        if n > 0:
-            u_tau[1] = line_extrapolation(tau[1], t[n-1], u[n - 1], t[n], u[n])
-        else:
-            # в точке t0 еще нет предыдущих данных для экстраполяции
-            u_tau[1] = u[n]
-
-            
-
-
+        # вычисляем u_tau[1] и du_dt_tau[1]
+        _correct_u_du()
 
         f_tau[1] = f(u_tau[1], tau[1])
-
         alfa[0] = (f_tau[1] - f_tau[0]) / tau[1]
 
-        for i in range(len(h)):
-            a[i] = alfa[0]
-            for j in range(len(h)):
-                a[i] += c[j, i] * alfa[j + 1]
+        _correct_a()
+        _correct_u_du()
 
-        print(a)
-
-
+        print(du_dt_tau)
 
         # stub
-        unew = u[n]
+        u_new = u[n]
+        du_dt_new = du_dt[n]
 
         self.t = np.append(self.t, self.t[-1] + self.dt)
         self._change_dt()
 
-        return unew
+        return u_new, du_dt_new
 
     def _change_dt(self) -> None:
         """
