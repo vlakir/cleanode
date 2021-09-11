@@ -65,7 +65,7 @@ if __name__ == '__main__':
     u0 = 1  # начальное положение
     du_dt0 = 0  # начальная скорость
     solver = Everhart7ODESolver(f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=False)
-    u_exact = u0 - const.g * time_exact
+    u_exact = u0 - const.g * time_exact ** 2 / 2
 
     u3, t3 = solver.solve(print_benchmark=True, benchmark_name=solver.name)
 

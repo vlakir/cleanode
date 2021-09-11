@@ -673,13 +673,14 @@ class Everhart7ODESolver:
 
         # тут должен начинаться цикл ################################################################
 
-        for i in range(3):
+        for i in range(1):
             f_tau[0] = f(u_tau[0], tau[0])
 
             # вычисляем u_tau[1] и du_dt_tau[1]
             _correct_u_du()
 
-            # print(i, u_tau, du_dt_tau, f_tau)
+            # print(f'u_tau={u_tau}')
+            # print(f'du_dt_tau={du_dt_tau}')
 
             # f_tau[1] = f(u_tau[1], tau[1])
             _correct_alfa()
@@ -701,7 +702,7 @@ class Everhart7ODESolver:
 
         u_new, du_dt_new = _u_du(dt)
 
-        # stub
+        # # stub
         # u_new = u[n]
         # du_dt_new = du_dt[n]
 
