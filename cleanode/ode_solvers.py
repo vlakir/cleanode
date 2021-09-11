@@ -610,20 +610,20 @@ class Everhart7ODESolver:
         def _u_du(time):
             u_result = p_u[0] * u_tau[0] + p_u[1] * du_dt_tau[0] * time + p_u[2] * f_tau[0] * time ** 2
             du_result = du_dt_tau[0] + f_tau[0] * time
-            for jj in range(size):
+            for jj in range(a_size):
                 u_result += p_u[jj + 3] * a[jj] * time ** (jj + 3)
                 du_result += a[jj] * time ** (jj + 2) / (jj + 2)
             return u_result, du_result
 
         def _correct_u_du() -> None:
-            for ii in range(size):
+            for ii in range(tau_size):
                 u_tau[ii], du_dt_tau[ii] = _u_du(tau[ii])
                 f_tau[ii] = f(u_tau[ii], tau[ii])
 
         def _correct_a() -> None:
-            for ii in range(size):
+            for ii in range(a_size):
                 a[ii] = alfa[ii]
-                for jj in range(size):
+                for jj in range(a_size):
                     a[ii] += c[jj, ii] * alfa[jj]
 
         def div_dif(nn):
@@ -637,20 +637,26 @@ class Everhart7ODESolver:
             return result
 
         def _correct_alfa() -> None:
-            for ii in range(size):
+            for ii in range(a_size):
                 alfa[ii] = div_dif(ii + 1)
 
         u, du_dt, f, n, t, dt, h, p_u = self.u, self.du_dt, self.f2, self.n, self.t, self.dt, self.h, \
                                         self.polynomial_coeffs_u
         tau = h * dt
-        f_tau = np.zeros([len(h)], dtype='longdouble')
 
-        size = len(h) - 1
+        a_size = len(h) - 1
+        tau_size = len(h)
 
-        c = np.zeros([size, size], dtype='longdouble')
+        f_tau = np.zeros(tau_size, dtype='longdouble')
+        u_tau = np.zeros([tau_size], dtype='longdouble')
+        du_dt_tau = np.zeros([tau_size], dtype='longdouble')
+        a = np.zeros([a_size], dtype='longdouble')
+        alfa = np.zeros([a_size], dtype='longdouble')
 
-        for i in range(size):
-            for j in range(size):
+        c = np.zeros([a_size, a_size], dtype='longdouble')
+
+        for i in range(a_size):
+            for j in range(a_size):
                 if i == j:
                     c[i, j] = 1
                 elif (j == 0) and (i > 0):
@@ -661,16 +667,9 @@ class Everhart7ODESolver:
         # from third_party_libs.table_it import print_table
         # print_table(c)
 
-        u_tau = np.zeros([size], dtype='longdouble')
-        du_dt_tau = np.zeros([size], dtype='longdouble')
-        a = np.zeros([size], dtype='longdouble')
-        alfa = np.zeros([size], dtype='longdouble')
-
         # инициализация:
         u_tau[0] = u[n]
         du_dt_tau[0] = du_dt[n]
-
-        print(du_dt_tau[0])
 
         # тут должен начинаться цикл ################################################################
 
@@ -679,6 +678,8 @@ class Everhart7ODESolver:
 
             # вычисляем u_tau[1] и du_dt_tau[1]
             _correct_u_du()
+
+            # print(i, u_tau, du_dt_tau, f_tau)
 
             # f_tau[1] = f(u_tau[1], tau[1])
             _correct_alfa()
@@ -695,14 +696,14 @@ class Everhart7ODESolver:
 
         # print(tau)
 
-        print(u_tau, du_dt_tau)
+        # print(u_tau, du_dt_tau)
 
 
-        # u_new, du_dt_new = _u_du(dt)
+        u_new, du_dt_new = _u_du(dt)
 
         # stub
-        u_new = u[n]
-        du_dt_new = du_dt[n]
+        # u_new = u[n]
+        # du_dt_new = du_dt[n]
 
         # print(u_new, du_dt_new)
 
