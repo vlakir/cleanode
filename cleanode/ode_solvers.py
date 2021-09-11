@@ -1,3 +1,4 @@
+import numpy
 import numpy as np
 from typing import Callable, Tuple
 from typing import Union, List
@@ -491,7 +492,8 @@ class DormandPrince54ODESolver(GenericExplicitRKODESolver):
 class Everhart7ODESolver:
     """
     Implements original 7th order Everhart method:
-    Everhart Е. Implicit single-sequence methods for integrating orbits. //Celestial Mechanics. 1974. 10. P.35-55.
+    [Everhart1] Everhart Е. Implicit single-sequence methods for integrating orbits.
+                //Celestial Mechanics. 1974. 10. P.35-55.
     """
     name = '15th order Everhart method'
 
@@ -507,15 +509,15 @@ class Everhart7ODESolver:
         0.977520613561287501
     ], dtype='longdouble')
 
-    polynomial_coeffs_u = np.array([1, 1, 1 / 2, 1 / 6, 1 / 12, 1 / 20, 1 / 30, 1 / 42, 1 / 56, 1 / 72],
-                                   dtype='longdouble')
+    polynomial_coeffs = np.array([1, 1, 1 / 2, 1 / 6, 1 / 12, 1 / 20, 1 / 30, 1 / 42, 1 / 56, 1 / 72],
+                                 dtype='longdouble')
 
     def __init__(self, f2: Callable,
-                 u0: Union[List, float],
-                 du_dt0: Union[List, float],
-                 t0: float,
-                 tmax: float,
-                 dt0: float,
+                 u0: Union[List, numpy.longfloat],
+                 du_dt0: Union[List, numpy.longfloat],
+                 t0: numpy.longfloat,
+                 tmax: numpy.longfloat,
+                 dt0: numpy.longfloat,
                  name='15th order Everhart method',
                  is_adaptive_step=False):
         """
@@ -526,11 +528,11 @@ class Everhart7ODESolver:
         :param du_dt0: initial conditions of required function's derivative
         :type du_dt0: Union[List, float]
         :param t0: lower limit of integration
-        :type t0: float
+        :type t0: numpy.longfloat
         :param tmax: upper limit of integration
-        :type tmax: float
+        :type tmax: numpy.longfloat
         :param dt0: initial step of integration
-        :type dt0: float
+        :type dt0: numpy.longfloat
         :param name: method name
         :type name: string
         :param is_adaptive_step: use adaptive time step
@@ -550,6 +552,20 @@ class Everhart7ODESolver:
         self.dt0 = t0
 
         self.t = np.array([t0])
+
+        self.tau = self.h * self.dt
+        a_size = len(self.h) - 1
+
+        # коэффициенты (9) из [Everhart1]
+        self.c = np.zeros([a_size, a_size], dtype='longdouble')
+        for i in range(a_size):
+            for j in range(a_size):
+                if i == j:
+                    self.c[i, j] = 1
+                elif (j == 0) and (i > 0):
+                    self.c[i, j] = -self.tau[i] * self.c[i - 1, j]
+                elif 0 < j < i:
+                    self.c[i, j] = self.c[i - 1, j - 1] - self.tau[i] * self.c[i - 1, j]
 
         if isinstance(u0, (float, int)):  # scalar ODE
             u0 = np.float(u0)
@@ -607,41 +623,8 @@ class Everhart7ODESolver:
         :return: solution
         :rtype: float
         """
-        def _u_du(time):
-            u_result = p_u[0] * u_tau[0] + p_u[1] * du_dt_tau[0] * time + p_u[2] * f_tau[0] * time ** 2
-            du_result = du_dt_tau[0] + f_tau[0] * time
-            for jj in range(a_size):
-                u_result += p_u[jj + 3] * a[jj] * time ** (jj + 3)
-                du_result += a[jj] * time ** (jj + 2) / (jj + 2)
-            return u_result, du_result
+        u, du_dt, f, n, t, dt, h, c = self.u, self.du_dt, self.f2, self.n, self.t, self.dt, self.h, self.c
 
-        def _correct_u_du() -> None:
-            for ii in range(tau_size):
-                u_tau[ii], du_dt_tau[ii] = _u_du(tau[ii])
-                f_tau[ii] = f(u_tau[ii], tau[ii])
-
-        def _correct_a() -> None:
-            for ii in range(a_size):
-                a[ii] = alfa[ii]
-                for jj in range(a_size):
-                    a[ii] += c[jj, ii] * alfa[jj]
-
-        def div_dif(nn):
-            result = 0
-            for jj in range(nn + 1):
-                product = 1
-                for ii in range(nn + 1):
-                    if jj != ii:
-                        product *= tau[jj] - tau[ii]
-                result += f_tau[jj] / product
-            return result
-
-        def _correct_alfa() -> None:
-            for ii in range(a_size):
-                alfa[ii] = div_dif(ii + 1)
-
-        u, du_dt, f, n, t, dt, h, p_u = self.u, self.du_dt, self.f2, self.n, self.t, self.dt, self.h, \
-                                        self.polynomial_coeffs_u
         tau = h * dt
 
         a_size = len(h) - 1
@@ -653,60 +636,32 @@ class Everhart7ODESolver:
         a = np.zeros([a_size], dtype='longdouble')
         alfa = np.zeros([a_size], dtype='longdouble')
 
-        c = np.zeros([a_size, a_size], dtype='longdouble')
-
-        for i in range(a_size):
-            for j in range(a_size):
-                if i == j:
-                    c[i, j] = 1
-                elif (j == 0) and (i > 0):
-                    c[i, j] = -tau[i] * c[i - 1, j]
-                elif 0 < j < i:
-                    c[i, j] = c[i - 1, j - 1] - tau[i] * c[i - 1, j]
-
-        # from third_party_libs.table_it import print_table
-        # print_table(c)
-
         # инициализация:
         u_tau[0] = u[n]
         du_dt_tau[0] = du_dt[n]
+        f_tau[0] = f(u_tau[0], tau[0])
 
-        # тут должен начинаться цикл ################################################################
+        u_tau[1], du_dt_tau[1] = self._extrapolate(tau[1], u_tau[0], du_dt_tau[0], f_tau[0], a)
+        f_tau[1] = f(u_tau[1], tau[1])
 
-        for i in range(1):
-            f_tau[0] = f(u_tau[0], tau[0])
+        # 2do: почитать что Эверхарт говорил про 3 уточняющих прогона вначале
+        for i in range(tau_size):
+            # корректируем коэффициенты alfa
+            for j in range(a_size):
+                alfa[j] = self.divided_difference(j + 1, f_tau, tau)
 
-            # вычисляем u_tau[1] и du_dt_tau[1]
-            _correct_u_du()
+            # корректируем коэффициенты a
+            for j in range(a_size):
+                a[j] = alfa[j]
+                for k in range(a_size):
+                    a[j] += c[k, j] * alfa[k]
 
-            # print(f'u_tau={u_tau}')
-            # print(f'du_dt_tau={du_dt_tau}')
+            for j in range(tau_size):
+                u_tau[j], du_dt_tau[j] = self._extrapolate(tau[j], u_tau[0], du_dt_tau[0], f_tau[0], a)
+                f_tau[j] = f(u_tau[j], tau[j])
 
-            # f_tau[1] = f(u_tau[1], tau[1])
-            _correct_alfa()
-
-            _correct_a()
-            _correct_u_du()
-
-            # print(i, a)
-
-            # print(i, u_tau, du_dt_tau)
-
-            # print(f_tau)
-
-
-        # print(tau)
-
-        # print(u_tau, du_dt_tau)
-
-
-        u_new, du_dt_new = _u_du(dt)
-
-        # # stub
-        # u_new = u[n]
-        # du_dt_new = du_dt[n]
-
-        # print(u_new, du_dt_new)
+        # уточняем финальные значения функции и производной в соотвествии с (14), (15) из [Everhart1]
+        u_new, du_dt_new = self._extrapolate(dt, u_tau[0], du_dt_tau[0], f_tau[0], a)
 
         self.t = np.append(self.t, self.t[-1] + self.dt)
         self._change_dt()
@@ -721,3 +676,50 @@ class Everhart7ODESolver:
             # 2do: to implement
             raise ValueError('is_adaptive_step==True is not supported yet')
             # self.dt = ...
+
+    def _extrapolate(self, time: numpy.longdouble, u0: numpy.longdouble, du_dt0: numpy.longdouble, f0: numpy.longdouble,
+                     a: numpy.array) -> Tuple[numpy.longdouble, numpy.longdouble]:
+        """
+        Экстраполяция функции и ее первой производной полиномомами (4) и (5) из [Everhart1]
+        :param time: время
+        :type time: numpy.longdouble
+        :param u0: начальное значение функции
+        :type u0: numpy.longdouble
+        :param du_dt0:
+        :type du_dt0: numpy.longdouble
+        :param f0: начальное значение правой части ОДУ
+        :type f0: numpy.longdouble
+        :param a: коэффициенты экстраполяционного полинома
+        :type a: numpy.array
+        :return: экстраполированные значения
+        :rtype: Tuple[numpy.longdouble, numpy.longdouble]
+        """
+        p = self.polynomial_coeffs
+        u_result = p[0] * u0 + p[1] * du_dt0 * time + p[2] * f0 * time ** 2
+        du_result = du_dt0 + f0 * time
+        for i in range(len(a)):
+            u_result += p[i + 3] * a[i] * time ** (i + 3)
+            du_result += a[i] * time ** (i + 2) / (i + 2)
+        return u_result, du_result
+
+    @staticmethod
+    def divided_difference(n: int, f: numpy.array, t: numpy.array) -> numpy.longdouble:
+        """
+        Вычисление разделенной разности в соответствиии с (7) из [Everhart1]
+        :param n: порядок разделенной разности
+        :type n: int
+        :param f: функция из правой части ОДУ
+        :type f:  numpy.array
+        :param t: время
+        :type t: numpy.array
+        :return: значение разделенной разности
+        :rtype: numpy.longdouble
+        """
+        result = numpy.longdouble(0)
+        for j in range(n + 1):
+            product = 1
+            for i in range(n + 1):
+                if j != i:
+                    product *= t[j] - t[i]
+            result += f[j] / product
+        return result
