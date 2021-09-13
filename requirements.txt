@@ -7,3 +7,4 @@ funnydeco>=0.1.5
 matplotlib>=3.4.3
 scipy>=1.7.1
 PyQt5>=5.15.4
+quadpy>=0.16.9

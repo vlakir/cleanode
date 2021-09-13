@@ -3,6 +3,7 @@ import numpy as np
 from typing import Callable, Tuple
 from typing import Union, List
 from funnydeco import benchmark
+import quadpy
 
 
 class GenericExplicitRKODESolver:
@@ -104,7 +105,9 @@ class GenericExplicitRKODESolver:
         i = 0
         while self.t[i] <= self.tmax:
             self.n = i
-            u_next = self._do_step()
+            u_next = self._do_step(self.u, self.f, self.n, self.t, self.dt, self.a, self.b, self.c)
+            self.t = np.append(self.t, self.t[-1] + self.dt)
+            self._change_dt()
             self.u = np.vstack([self.u, u_next])
             i += 1
 
@@ -114,13 +117,12 @@ class GenericExplicitRKODESolver:
 
         return self.u, self.t
 
-    def _do_step(self) -> np.ndarray:
+    def _do_step(self, u, f, n, t, dt, a, b, c) -> np.ndarray:
         """
         One-step integration solution
         :return: solution
         :rtype: float
         """
-        u, f, n, t, dt, a, b, c = self.u, self.f, self.n, self.t, self.dt, self.a, self.b, self.c
 
         k = np.zeros((len(b), self.ode_system_size))
 
@@ -134,10 +136,6 @@ class GenericExplicitRKODESolver:
         unew = np.sum((b * k.T).T, axis=0)
         unew *= dt
         unew += u[n]
-
-        self.t = np.append(self.t, self.t[-1] + self.dt)
-
-        self._change_dt()
 
         return unew
 
@@ -489,39 +487,26 @@ class DormandPrince54ODESolver(GenericExplicitRKODESolver):
         super().__init__(*args, **kwargs, butcher_tableau=self.butcher_tableau, name=self.name)
 
 
-class Everhart7ODESolver:
+class EverhartIIODESolver:
     """
-    Implements original 7th order Everhart method:
+    Implements original Everhart method [Everhart1] using defined quadrature
     [Everhart1] Everhart Е. Implicit single-sequence methods for integrating orbits.
                 //Celestial Mechanics. 1974. 10. P.35-55.
     """
-    name = '15th order Everhart method'
 
-    # 2do: уточнить последние цифры в соотв. со статьей Эверхарта
-    h = np.array([
-        0.000000000000000000,
-        0.056262560526922147,
-        0.180240691736892365,
-        0.352624717113169637,
-        0.547153626330555383,
-        0.734210177215410532,
-        0.885320946839095768,
-        0.977520613561287501
-    ], dtype='longdouble')
-
-    polynomial_coeffs = np.array([1, 1, 1 / 2, 1 / 6, 1 / 12, 1 / 20, 1 / 30, 1 / 42, 1 / 56, 1 / 72],
-                                 dtype='longdouble')
-
-    def __init__(self, f2: Callable,
+    def __init__(self, order, quadpy_function: Callable, f2: Callable,
                  u0: Union[List, numpy.longfloat],
                  du_dt0: Union[List, numpy.longfloat],
                  t0: numpy.longfloat,
                  tmax: numpy.longfloat,
                  dt0: numpy.longfloat,
-                 name='15th order Everhart method',
                  is_adaptive_step=False):
         """
-        :param f2: function for calculating right parts of 2nd order ODE
+        :param order: order of method
+        :type order: int
+        :param quadpy_function: function for calculating of quadrature from quadpy library
+        :type quadpy_function: Callable
+        :param f2: function for calculating of right parts of 2nd order ODE
         :type f2: Callable
         :param u0: initial conditions of required function
         :type u0: Union[List, float]
@@ -533,18 +518,27 @@ class Everhart7ODESolver:
         :type tmax: numpy.longfloat
         :param dt0: initial step of integration
         :type dt0: numpy.longfloat
-        :param name: method name
-        :type name: string
         :param is_adaptive_step: use adaptive time step
         :type is_adaptive_step: bool
         """
+        self.name = f'{order} order Everhart method using {quadpy_function.__name__} quadrature'
+
+        degree = round((order + 1) / 2)
+
+        self.h = (quadpy_function(degree).points + 1) / 2
+
+        self.polynomial_coeffs = np.zeros([degree + 2], dtype='longdouble')
+        self.polynomial_coeffs[0] = self.polynomial_coeffs[1] = 1
+        for i in range(2, degree + 2):
+            self.polynomial_coeffs[i] = 1 / (i * (i - 1))
+
         self.f2 = f2
-        self.name = name
 
         self.is_adaptive_step = is_adaptive_step
 
         self.u = None
         self.du_dt = None
+        self.alfa = np.zeros([len(self.h) - 1], dtype='longdouble')
         self.n = None
         self.dt = dt0
         self.tmax = tmax
@@ -602,10 +596,17 @@ class Everhart7ODESolver:
             self.u[0] = self.u0
             self.du_dt[0] = self.du_dt0
 
+        # starting alfa values estimation according chapter 3.3 from [Everhart1]
+        for __ in range(4):
+            __, __, self.alfa = self._do_step(self.u, self.du_dt, self.f2, self.n, self.dt, self.h, self.c, self.alfa)
+
         i = 0
         while self.t[i] <= self.tmax:
             self.n = i
-            u_next, du_dt_next = self._do_step()
+            u_next, du_dt_next, self.alfa = self._do_step(self.u, self.du_dt, self.f2, self.n, self.dt, self.h,
+                                                          self.c, self.alfa)
+            self.t = np.append(self.t, self.t[-1] + self.dt)
+            self._change_dt()
             self.u = np.vstack([self.u, u_next])
             self.du_dt = np.vstack([self.du_dt, du_dt_next])
 
@@ -617,14 +618,12 @@ class Everhart7ODESolver:
 
         return self.u, self.t
 
-    def _do_step(self) -> Tuple[np.ndarray, np.ndarray]:
+    def _do_step(self, u, du_dt, f, n, dt, h, c, alfa) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         One-step integration solution
         :return: solution
-        :rtype: float
+        :rtype: Tuple[np.ndarray, np.ndarray, np.ndarray]
         """
-        u, du_dt, f, n, t, dt, h, c = self.u, self.du_dt, self.f2, self.n, self.t, self.dt, self.h, self.c
-
         tau = h * dt
 
         a_size = len(h) - 1
@@ -634,15 +633,14 @@ class Everhart7ODESolver:
         u_tau = np.zeros([tau_size], dtype='longdouble')
         du_dt_tau = np.zeros([tau_size], dtype='longdouble')
         a = np.zeros([a_size], dtype='longdouble')
-        alfa = np.zeros([a_size], dtype='longdouble')
 
         # инициализация:
         u_tau[0] = u[n]
         du_dt_tau[0] = du_dt[n]
-        f_tau[0] = f(u_tau[0], tau[0])
+        f_tau[0] = f(u_tau[0], du_dt_tau[0], tau[0])
 
         u_tau[1], du_dt_tau[1] = self._extrapolate(tau[1], u_tau[0], du_dt_tau[0], f_tau[0], a)
-        f_tau[1] = f(u_tau[1], tau[1])
+        f_tau[1] = f(u_tau[1], du_dt_tau[1], tau[1])
 
         # 2do: почитать что Эверхарт говорил про 3 уточняющих прогона вначале
         for i in range(tau_size):
@@ -658,15 +656,12 @@ class Everhart7ODESolver:
 
             for j in range(tau_size):
                 u_tau[j], du_dt_tau[j] = self._extrapolate(tau[j], u_tau[0], du_dt_tau[0], f_tau[0], a)
-                f_tau[j] = f(u_tau[j], tau[j])
+                f_tau[j] = f(u_tau[j], du_dt_tau[j], tau[j])
 
         # уточняем финальные значения функции и производной в соотвествии с (14), (15) из [Everhart1]
         u_new, du_dt_new = self._extrapolate(dt, u_tau[0], du_dt_tau[0], f_tau[0], a)
 
-        self.t = np.append(self.t, self.t[-1] + self.dt)
-        self._change_dt()
-
-        return u_new, du_dt_new
+        return u_new, du_dt_new, alfa
 
     def _change_dt(self) -> None:
         """
@@ -723,3 +718,39 @@ class Everhart7ODESolver:
                     product *= t[j] - t[i]
             result += f[j] / product
         return result
+
+
+class EverhartIIRadau21ODESolver(EverhartIIODESolver):
+    """
+    Implements original Everhart 21-order method [Everhart1] using Radau quadrature
+    [Everhart1] Everhart Е. Implicit single-sequence methods for integrating orbits.
+                //Celestial Mechanics. 1974. 10. P.35-55.
+    """
+
+    def __init__(self, f2: Callable,
+                 u0: Union[List, numpy.longfloat],
+                 du_dt0: Union[List, numpy.longfloat],
+                 t0: numpy.longfloat,
+                 tmax: numpy.longfloat,
+                 dt0: numpy.longfloat,
+                 is_adaptive_step=False):
+
+        super().__init__(21, quadpy.c1.gauss_radau, f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step)
+
+
+class EverhartIILobatto21ODESolver(EverhartIIODESolver):
+    """
+    Implements original Everhart 21-order method [Everhart1] using Radau quadrature
+    [Everhart1] Everhart Е. Implicit single-sequence methods for integrating orbits.
+                //Celestial Mechanics. 1974. 10. P.35-55.
+    """
+
+    def __init__(self, f2: Callable,
+                 u0: Union[List, numpy.longfloat],
+                 du_dt0: Union[List, numpy.longfloat],
+                 t0: numpy.longfloat,
+                 tmax: numpy.longfloat,
+                 dt0: numpy.longfloat,
+                 is_adaptive_step=False):
+
+        super().__init__(21, quadpy.c1.gauss_lobatto, f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step)

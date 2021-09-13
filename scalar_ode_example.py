@@ -27,11 +27,13 @@ if __name__ == '__main__':
         return right_side
 
     # noinspection PyUnusedLocal
-    def f2(u: float, t: Union[np.ndarray, np.float64]) -> float:
+    def f2(u: np.longdouble, du_dt: np.longdouble, t: Union[np.ndarray, np.longdouble]) -> float:
         """
         Calculating the right side of the 2nd order ODE
-        :param u: variable value
-        :type u: float
+        :param u: variable
+        :type u: np.longdouble
+         :param du_dt: time derivative of variable
+        :type du_dt: np.longdouble
         :param t: time
         :type t: Union[np.ndarray, np.float64]
         :return: calculated value of the right part
@@ -49,23 +51,25 @@ if __name__ == '__main__':
 
 
     # calculation parameters:
-    t0 = 0
-    tmax = 3
-    dt0 = 0.3
+    t0 = np.longdouble(0)
+    tmax = np.longdouble(3)
+    dt0 = np.longdouble(0.3)
 
     points_number = int((tmax - t0) / dt0)
     time_exact = np.linspace(t0, tmax, points_number * 10)
 
     # # initial condition:
     # u0 = 1
-    # solver = RungeKutta4ODESolver(f2, u0, t0, tmax, dt0, is_adaptive_step=False)
+    # solver = RungeKutta4ODESolver(f, u0, t0, tmax, dt0, is_adaptive_step=False)
     # u_exact = np.exp(time_exact)
 
     # initial condition:
-    u0 = 1  # начальное положение
-    du_dt0 = 0  # начальная скорость
-    solver = Everhart7ODESolver(f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=False)
-    u_exact = u0 - const.g * time_exact ** 2 / 2
+    u0 = np.longdouble(0.0)  # начальное положение
+    du_dt0 = np.longdouble(16.2)  # начальная скорость
+    solver = EverhartIIRadau21ODESolver(f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=False)
+    # solver = EverhartIILobatto21ODESolver(f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=False)
+
+    u_exact = u0 + du_dt0 * time_exact - const.g * time_exact ** 2 / 2
 
     u3, t3 = solver.solve(print_benchmark=True, benchmark_name=solver.name)
 
