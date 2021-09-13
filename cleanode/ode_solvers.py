@@ -1,7 +1,6 @@
 import numpy
 import numpy as np
 from typing import Callable, Tuple
-from typing import Union, List
 from funnydeco import benchmark
 import quadpy
 
@@ -12,10 +11,10 @@ class GenericExplicitRKODESolver:
     """
 
     def __init__(self, f: Callable,
-                 u0: Union[List, float],
-                 t0: float,
-                 tmax: float,
-                 dt0: float,
+                 u0: np.array,
+                 t0: numpy.longdouble,
+                 tmax: numpy.longdouble,
+                 dt0: numpy.longdouble,
                  butcher_tableau=None,
                  name='method name is not defined',
                  is_adaptive_step=False):
@@ -23,13 +22,13 @@ class GenericExplicitRKODESolver:
         :param f: function for calculating right parts of 1st order ODE
         :type f: Callable
         :param u0: initial conditions
-        :type u0: Union[List, float]
+        :type u0: np.array
         :param t0: lower limit of integration
-        :type t0: float
+        :type t0: numpy.longdouble
         :param tmax: upper limit of integration
-        :type tmax: float
+        :type tmax: numpy.longdouble
         :param dt0: initial step of integration
-        :type dt0: float
+        :type dt0: numpy.longdouble
         :param butcher_tableau: Butcher tableau
         :type butcher_tableau: np.array
         :param name: method name
@@ -50,8 +49,7 @@ class GenericExplicitRKODESolver:
             self.b = butcher_tableau[-1, 1:]
             self.b1 = None
             self.a = butcher_tableau[:-1, 1:]
-        elif len(self.butcher_tableau[0]) == len(self.butcher_tableau) - 1:  # есть дополнительная строка b1 для
-            # проверки точности решения на шаге
+        elif len(self.butcher_tableau[0]) == len(self.butcher_tableau) - 1:  # here is row b1 for accurancy check
             self.c = butcher_tableau[:-2, 0]
             self.b = butcher_tableau[-2, 1:]
             self.b1 = butcher_tableau[-1, 1:]
@@ -72,14 +70,10 @@ class GenericExplicitRKODESolver:
         self.t0 = tmax
         self.dt0 = t0
 
-        self.t = np.array([t0])
+        self.t = np.array([t0], dtype='longdouble')
 
-        if isinstance(u0, (float, int)):  # scalar ODE
-            u0 = np.float(u0)
-            self.ode_system_size = 1
-        else:  # ODE system
-            u0 = np.asarray(u0)
-            self.ode_system_size = u0.size
+        u0 = np.asarray(u0, dtype='longdouble')
+        self.ode_system_size = u0.size
 
         self.u0 = u0
 
@@ -95,17 +89,16 @@ class GenericExplicitRKODESolver:
         :return: solution, time
         :rtype: Type[np.ndarray, np.ndarray]
         """
-
-        if self.ode_system_size == 1:  # scalar ODEs
-            self.u = np.array([self.u0])
-        else:  # systems of ODEs
-            self.u = np.zeros((1, self.ode_system_size))
-            self.u[0] = self.u0
+        self.u = np.zeros((1, self.ode_system_size), dtype='longdouble')
+        self.u[0] = self.u0
 
         i = 0
         while self.t[i] <= self.tmax:
             self.n = i
+
+            # noinspection PyTypeChecker
             u_next = self._do_step(self.u, self.f, self.n, self.t, self.dt, self.a, self.b, self.c)
+
             self.t = np.append(self.t, self.t[-1] + self.dt)
             self._change_dt()
             self.u = np.vstack([self.u, u_next])
@@ -121,14 +114,13 @@ class GenericExplicitRKODESolver:
         """
         One-step integration solution
         :return: solution
-        :rtype: float
+        :rtype: np.ndarray
         """
+        k = np.zeros((len(b), self.ode_system_size), dtype='longdouble')
 
-        k = np.zeros((len(b), self.ode_system_size))
-
-        k[0] = np.array(f(u[n], t))
+        k[0] = np.array(f(u[n], t), dtype='longdouble')
         for i in range(1, len(k)):
-            summ = np.float(0)
+            summ = np.longdouble(0)
             for j in range(i + 1):
                 summ += a[i, j] * k[j]
             k[i] = f(u[n] + dt * summ, t[n] + c[i] * dt)
@@ -162,7 +154,7 @@ class EulerODESolver(GenericExplicitRKODESolver):
 
         [None, 1]
 
-    ], dtype='float')
+    ], dtype='longdouble')
 
     name = 'Euler method'
 
@@ -181,7 +173,7 @@ class MidpointODESolver(GenericExplicitRKODESolver):
 
         [None, 0, 1]
 
-    ], dtype='float')
+    ], dtype='longdouble')
 
     name = 'Explicit midpoint method'
 
@@ -202,7 +194,7 @@ class RungeKutta4ODESolver(GenericExplicitRKODESolver):
 
         [None, 1 / 6, 1 / 3, 1 / 3, 1 / 6]
 
-    ], dtype='float')
+    ], dtype='longdouble')
 
     name = 'Fourth-order Runge–Kutta method'
 
@@ -226,7 +218,7 @@ class Fehlberg45Solver(GenericExplicitRKODESolver):
         [None, 16 / 135, 0, 6656 / 12825, 28561 / 56430, -9 / 50, 2 / 55],
         [None, 25 / 216, 0, 1408 / 2565, 2197 / 4104, -1 / 5, 0]
 
-    ], dtype='float')
+    ], dtype='longdouble')
 
     name = 'Fehlberg method'
 
@@ -245,7 +237,7 @@ class Ralston2ODESolver(GenericExplicitRKODESolver):
 
         [None, 1 / 4, 3 / 4]
 
-    ], dtype='float')
+    ], dtype='longdouble')
 
     name = 'Ralston method'
 
@@ -265,7 +257,7 @@ class RungeKutta3ODESolver(GenericExplicitRKODESolver):
 
         [None, 1 / 6, 2 / 3, 1 / 6]
 
-    ], dtype='float')
+    ], dtype='longdouble')
 
     name = 'Third-order Runge–Kutta method'
 
@@ -285,7 +277,7 @@ class Heun3ODESolver(GenericExplicitRKODESolver):
 
         [None, 1 / 4, 0, 3 / 4]
 
-    ], dtype='float')
+    ], dtype='longdouble')
 
     name = 'Heun third-order method'
 
@@ -305,7 +297,7 @@ class Ralston3ODESolver(GenericExplicitRKODESolver):
 
         [None, 2 / 9, 1 / 3, 4 / 9]
 
-    ], dtype='float')
+    ], dtype='longdouble')
 
     name = 'Ralston third-order method'
 
@@ -325,7 +317,7 @@ class SSPRK3ODESolver(GenericExplicitRKODESolver):
 
         [None, 1 / 6, 1 / 6, 2 / 3]
 
-    ], dtype='float')
+    ], dtype='longdouble')
 
     name = 'Third-order Strong Stability Preserving Runge-Kutta method'
 
@@ -346,7 +338,7 @@ class Ralston4ODESolver(GenericExplicitRKODESolver):
 
         [None, 0.17476028, -0.55148066, 1.20553560, 0.17118476]
 
-    ], dtype='float')
+    ], dtype='longdouble')
 
     name = 'Ralston fourth-order method'
 
@@ -367,7 +359,7 @@ class Rule384ODESolver(GenericExplicitRKODESolver):
 
         [None, 1 / 8, 3 / 8, 3 / 8, 1 / 8]
 
-    ], dtype='float')
+    ], dtype='longdouble')
 
     name = '3/8-rule fourth-order method'
 
@@ -387,7 +379,7 @@ class HeunEuler21ODESolver(GenericExplicitRKODESolver):
         [None, 1 / 2, 1 / 2],
         [None, 1, 0]
 
-    ], dtype='float')
+    ], dtype='longdouble')
 
     name = 'Heun–Euler method'
 
@@ -408,7 +400,7 @@ class Fehlberg21ODESolver(GenericExplicitRKODESolver):
         [None, 1 / 512, 255 / 256, 1 / 512],
         [None, 1 / 256, 255 / 256, 0]
 
-    ], dtype='float')
+    ], dtype='longdouble')
 
     name = 'Fehlberg RK1(2) method'
 
@@ -430,7 +422,7 @@ class BogackiShampine32ODESolver(GenericExplicitRKODESolver):
         [None, 2 / 9, 1 / 3, 4 / 9, 0],
         [None, 7 / 24, 1 / 4, 1 / 3, 1 / 8]
 
-    ], dtype='float')
+    ], dtype='longdouble')
 
     name = 'Bogacki–Shampine method'
 
@@ -454,7 +446,7 @@ class CashKarp54ODESolver(GenericExplicitRKODESolver):
         [None, 37 / 378, 0, 250 / 621, 125 / 594, 0, 512 / 1771],
         [None, 2825 / 27648, 0, 18575 / 48384, 13525 / 55296, 277 / 14336, 1 / 4]
 
-    ], dtype='float')
+    ], dtype='longdouble')
 
     name = 'Cash-Karp method'
 
@@ -479,7 +471,7 @@ class DormandPrince54ODESolver(GenericExplicitRKODESolver):
         [None, 35 / 384, 0, 500 / 1113, 125 / 192, -2187 / 6784, 11 / 84, 0],
         [None, 5179 / 57600, 0, 7571 / 16695, 393 / 640, -92097 / 339200, 187 / 2100, 1 / 40]
 
-    ], dtype='float')
+    ], dtype='longdouble')
 
     name = 'Dormand–Prince method'
 
@@ -495,11 +487,11 @@ class EverhartIIODESolver:
     """
 
     def __init__(self, order, quadpy_function: Callable, f2: Callable,
-                 u0: Union[List, numpy.longfloat],
-                 du_dt0: Union[List, numpy.longfloat],
-                 t0: numpy.longfloat,
-                 tmax: numpy.longfloat,
-                 dt0: numpy.longfloat,
+                 u0: np.ndarray,
+                 du_dt0: np.ndarray,
+                 t0: numpy.longdouble,
+                 tmax: numpy.longdouble,
+                 dt0: numpy.longdouble,
                  is_adaptive_step=False):
         """
         :param order: order of method
@@ -509,15 +501,15 @@ class EverhartIIODESolver:
         :param f2: function for calculating of right parts of 2nd order ODE
         :type f2: Callable
         :param u0: initial conditions of required function
-        :type u0: Union[List, float]
+        :type u0: np.ndarray
         :param du_dt0: initial conditions of required function's derivative
-        :type du_dt0: Union[List, float]
+        :type du_dt0: np.ndarray
         :param t0: lower limit of integration
-        :type t0: numpy.longfloat
+        :type t0: numpy.longdouble
         :param tmax: upper limit of integration
-        :type tmax: numpy.longfloat
+        :type tmax: numpy.longdouble
         :param dt0: initial step of integration
-        :type dt0: numpy.longfloat
+        :type dt0: numpy.longdouble
         :param is_adaptive_step: use adaptive time step
         :type is_adaptive_step: bool
         """
@@ -538,19 +530,23 @@ class EverhartIIODESolver:
 
         self.u = None
         self.du_dt = None
-        self.alfa = np.zeros([len(self.h) - 1], dtype='longdouble')
+
+        u0 = np.asarray(u0, dtype='longdouble')
+        self.ode_system_size = u0.size
+        self.alfa = np.zeros([len(self.h) - 1, len(u0)], dtype='longdouble')
+
         self.n = None
         self.dt = dt0
         self.tmax = tmax
         self.t0 = tmax
         self.dt0 = t0
 
-        self.t = np.array([t0])
+        self.t = np.array([t0], dtype='longdouble')
 
         self.tau = self.h * self.dt
         a_size = len(self.h) - 1
 
-        # коэффициенты (9) из [Everhart1]
+        # (9) from [Everhart1]
         self.c = np.zeros([a_size, a_size], dtype='longdouble')
         for i in range(a_size):
             for j in range(a_size):
@@ -561,18 +557,8 @@ class EverhartIIODESolver:
                 elif 0 < j < i:
                     self.c[i, j] = self.c[i - 1, j - 1] - self.tau[i] * self.c[i - 1, j]
 
-        if isinstance(u0, (float, int)):  # scalar ODE
-            u0 = np.float(u0)
-            self.ode_system_size = 1
-        else:  # ODE system
-            u0 = np.asarray(u0)
-            self.ode_system_size = u0.size
-
         self.u0 = u0
         self.du_dt0 = du_dt0
-
-    # def __init__(self, *args, **kwargs):
-    #     super().__init__(*args, **kwargs, name=self.name)
 
     # noinspection PyUnusedLocal
     @benchmark
@@ -586,15 +572,10 @@ class EverhartIIODESolver:
         :return: solution, time
         :rtype: Type[np.ndarray, np.ndarray]
         """
-
-        if self.ode_system_size == 1:  # scalar ODEs
-            self.u = np.array([self.u0])
-            self.du_dt = np.array([self.du_dt0])
-        else:  # systems of ODEs
-            self.u = np.zeros((1, self.ode_system_size))
-            self.du_dt = np.zeros((1, self.ode_system_size))
-            self.u[0] = self.u0
-            self.du_dt[0] = self.du_dt0
+        self.u = np.zeros((1, self.ode_system_size), dtype='longdouble')
+        self.du_dt = np.zeros((1, self.ode_system_size), dtype='longdouble')
+        self.u[0] = self.u0
+        self.du_dt[0] = self.du_dt0
 
         # starting alfa values estimation according chapter 3.3 from [Everhart1]
         for __ in range(4):
@@ -628,27 +609,26 @@ class EverhartIIODESolver:
 
         a_size = len(h) - 1
         tau_size = len(h)
+        u_size = len(u[0])
 
-        f_tau = np.zeros(tau_size, dtype='longdouble')
-        u_tau = np.zeros([tau_size], dtype='longdouble')
-        du_dt_tau = np.zeros([tau_size], dtype='longdouble')
-        a = np.zeros([a_size], dtype='longdouble')
+        f_tau = np.zeros([tau_size, u_size], dtype='longdouble')
+        u_tau = np.zeros([tau_size, u_size], dtype='longdouble')
+        du_dt_tau = np.zeros([tau_size, u_size], dtype='longdouble')
+        a = np.zeros([a_size, u_size], dtype='longdouble')
 
-        # инициализация:
+        # initiation
         u_tau[0] = u[n]
         du_dt_tau[0] = du_dt[n]
         f_tau[0] = f(u_tau[0], du_dt_tau[0], tau[0])
-
         u_tau[1], du_dt_tau[1] = self._extrapolate(tau[1], u_tau[0], du_dt_tau[0], f_tau[0], a)
         f_tau[1] = f(u_tau[1], du_dt_tau[1], tau[1])
 
-        # 2do: почитать что Эверхарт говорил про 3 уточняющих прогона вначале
         for i in range(tau_size):
-            # корректируем коэффициенты alfa
+            # correct alfa coefficients according to (7) from [Everhart1]
             for j in range(a_size):
                 alfa[j] = self.divided_difference(j + 1, f_tau, tau)
 
-            # корректируем коэффициенты a
+            # correct a coefficients according to (8) from [Everhart1]
             for j in range(a_size):
                 a[j] = alfa[j]
                 for k in range(a_size):
@@ -658,7 +638,7 @@ class EverhartIIODESolver:
                 u_tau[j], du_dt_tau[j] = self._extrapolate(tau[j], u_tau[0], du_dt_tau[0], f_tau[0], a)
                 f_tau[j] = f(u_tau[j], du_dt_tau[j], tau[j])
 
-        # уточняем финальные значения функции и производной в соотвествии с (14), (15) из [Everhart1]
+        # correct final values of the function and derivative according to (14), (15) from [Everhart1]
         u_new, du_dt_new = self._extrapolate(dt, u_tau[0], du_dt_tau[0], f_tau[0], a)
 
         return u_new, du_dt_new, alfa
@@ -675,19 +655,19 @@ class EverhartIIODESolver:
     def _extrapolate(self, time: numpy.longdouble, u0: numpy.longdouble, du_dt0: numpy.longdouble, f0: numpy.longdouble,
                      a: numpy.array) -> Tuple[numpy.longdouble, numpy.longdouble]:
         """
-        Экстраполяция функции и ее первой производной полиномомами (4) и (5) из [Everhart1]
-        :param time: время
+        Extrapolation of the function and its first derivative by polynomials (4) and (5) from [Everhart1]
+        :param time: time
         :type time: numpy.longdouble
-        :param u0: начальное значение функции
+        :param u0: initial value of the function
         :type u0: numpy.longdouble
-        :param du_dt0:
-        :type du_dt0: numpy.longdouble
-        :param f0: начальное значение правой части ОДУ
+        :param du_dt 0:
+        :type du_dt 0: numpy.longdouble
+        :param f0: initial value of the right part of the ODE
         :type f0: numpy.longdouble
-        :param a: коэффициенты экстраполяционного полинома
+        :param a: coefficients of the extrapolation polynomial
         :type a: numpy.array
-        :return: экстраполированные значения
-        :rtype: Tuple[numpy.longdouble, numpy.longdouble]
+        :return: extrapolated values
+        :rtype: Tuple[numpy.long double, numpy.long double]
         """
         p = self.polynomial_coeffs
         u_result = p[0] * u0 + p[1] * du_dt0 * time + p[2] * f0 * time ** 2
@@ -700,14 +680,14 @@ class EverhartIIODESolver:
     @staticmethod
     def divided_difference(n: int, f: numpy.array, t: numpy.array) -> numpy.longdouble:
         """
-        Вычисление разделенной разности в соответствиии с (7) из [Everhart1]
-        :param n: порядок разделенной разности
+        Calculation of divided difference according to (7) from [Everhart 1]
+        :param n: the order of the divided difference
         :type n: int
-        :param f: функция из правой части ОДУ
-        :type f:  numpy.array
-        :param t: время
+        :param f: right side ODE function
+        :type f: numpy.array
+        :param t: time
         :type t: numpy.array
-        :return: значение разделенной разности
+        :return: value of divided difference
         :rtype: numpy.longdouble
         """
         result = numpy.longdouble(0)
@@ -728,11 +708,11 @@ class EverhartIIRadau21ODESolver(EverhartIIODESolver):
     """
 
     def __init__(self, f2: Callable,
-                 u0: Union[List, numpy.longfloat],
-                 du_dt0: Union[List, numpy.longfloat],
-                 t0: numpy.longfloat,
-                 tmax: numpy.longfloat,
-                 dt0: numpy.longfloat,
+                 u0: np.ndarray,
+                 du_dt0: np.ndarray,
+                 t0: numpy.longdouble,
+                 tmax: numpy.longdouble,
+                 dt0: numpy.longdouble,
                  is_adaptive_step=False):
 
         super().__init__(21, quadpy.c1.gauss_radau, f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step)
@@ -740,17 +720,53 @@ class EverhartIIRadau21ODESolver(EverhartIIODESolver):
 
 class EverhartIILobatto21ODESolver(EverhartIIODESolver):
     """
-    Implements original Everhart 21-order method [Everhart1] using Radau quadrature
+    Implements original Everhart 21-order method [Everhart1] using Lobatto quadrature
     [Everhart1] Everhart Е. Implicit single-sequence methods for integrating orbits.
                 //Celestial Mechanics. 1974. 10. P.35-55.
     """
 
     def __init__(self, f2: Callable,
-                 u0: Union[List, numpy.longfloat],
-                 du_dt0: Union[List, numpy.longfloat],
-                 t0: numpy.longfloat,
-                 tmax: numpy.longfloat,
-                 dt0: numpy.longfloat,
+                 u0: np.ndarray,
+                 du_dt0: np.ndarray,
+                 t0: numpy.longdouble,
+                 tmax: numpy.longdouble,
+                 dt0: numpy.longdouble,
                  is_adaptive_step=False):
 
         super().__init__(21, quadpy.c1.gauss_lobatto, f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step)
+
+
+class EverhartIIRadau15ODESolver(EverhartIIODESolver):
+    """
+    Implements original Everhart 15-order method [Everhart1] using Radau quadrature
+    [Everhart1] Everhart Е. Implicit single-sequence methods for integrating orbits.
+                //Celestial Mechanics. 1974. 10. P.35-55.
+    """
+
+    def __init__(self, f2: Callable,
+                 u0: np.ndarray,
+                 du_dt0: np.ndarray,
+                 t0: numpy.longdouble,
+                 tmax: numpy.longdouble,
+                 dt0: numpy.longdouble,
+                 is_adaptive_step=False):
+
+        super().__init__(15, quadpy.c1.gauss_radau, f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step)
+
+
+class EverhartIIRadau7ODESolver(EverhartIIODESolver):
+    """
+    Implements original Everhart 7-order method [Everhart1] using Radau quadrature
+    [Everhart1] Everhart Е. Implicit single-sequence methods for integrating orbits.
+                //Celestial Mechanics. 1974. 10. P.35-55.
+    """
+
+    def __init__(self, f2: Callable,
+                 u0: np.ndarray,
+                 du_dt0: np.ndarray,
+                 t0: numpy.longdouble,
+                 tmax: numpy.longdouble,
+                 dt0: numpy.longdouble,
+                 is_adaptive_step=False):
+
+        super().__init__(7, quadpy.c1.gauss_radau, f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step)
