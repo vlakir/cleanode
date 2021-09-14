@@ -42,6 +42,11 @@ if __name__ == '__main__':
 
         return right_sides
 
+    def exact_f(t):
+        x = x0 + vx0 * time_exact
+        y = y0 + vy0 * time_exact - const.g * time_exact ** 2 / 2
+        return x, y
+
     # noinspection PyUnusedLocal
     def f2(u: np.longdouble, du_dt: np.longdouble, t: Union[np.ndarray, np.longdouble]) -> np.array:
         """
@@ -75,8 +80,8 @@ if __name__ == '__main__':
 
     # calculation parameters:
     t0 = np.longdouble(0)
-    tmax = np.longdouble(1)
-    dt0 = np.longdouble(0.01)
+    tmax = np.longdouble(3)
+    dt0 = np.longdouble(0.3)
 
     # initial conditions:
     x0 = np.longdouble(0)
@@ -88,19 +93,32 @@ if __name__ == '__main__':
     vx0 = v0 * np.cos(angle_radians)
     vy0 = v0 * np.sin(angle_radians)
 
-    u0 = [x0, vx0, y0, vy0]
+    u0 = np.array([x0, vx0, y0, vy0], dtype='longdouble')
     solver = RungeKutta4ODESolver(f, u0, t0, tmax, dt0, is_adaptive_step=False)
     solution, time_points = solver.solve(print_benchmark=True, benchmark_name=solver.name)
     x_solution = solution[:, 0]
     y_solution = solution[:, 2]
+    plt.plot(x_solution, time_points, label=solver.name)
 
-    # u0 = [x0, y0]
-    # du_dt0 = [vx0, vy0]
-    # solver = EverhartIIRadau7ODESolver(f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=False)
+    # u0 = np.array([x0, vx0, y0, vy0], dtype='longdouble')
+    # solver = EverhartIRadau7ODESolver(f, u0, t0, tmax, dt0, is_adaptive_step=False)
     # solution, time_points = solver.solve(print_benchmark=True, benchmark_name=solver.name)
-    # x_solution = solution[:, 0]
-    # y_solution = solution[:, 1]
+    # x_solution1 = solution[:, 0]
+    # y_solution1 = solution[:, 2]
+    # plt.plot(x_solution1, time_points, label=solver.name)
+    #
+    u0 = np.array([x0, y0], dtype='longdouble')
+    du_dt0 = [vx0, vy0]
+    solver = EverhartIIRadau7ODESolver(f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=False)
+    solution, time_points = solver.solve(print_benchmark=True, benchmark_name=solver.name)
+    x_solution1 = solution[:, 0]
+    y_solution1 = solution[:, 1]
+    plt.plot(x_solution1, time_points, label=solver.name)
 
-    plt.plot(x_solution, y_solution)
+    points_number = int((tmax - t0) / dt0)
+    time_exact = np.linspace(t0, tmax, points_number * 10)
+    x_exact, y_exact = exact_f(time_exact)
+    plt.plot(x_exact, time_exact, label='Exact analytical solution')
 
+    plt.legend()
     plt.show()
