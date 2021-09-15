@@ -3,6 +3,7 @@ import numpy as np
 from typing import Callable, Tuple
 from funnydeco import benchmark
 import quadpy
+from scipy import interpolate
 
 
 class GenericExplicitRKODESolver:
@@ -535,8 +536,8 @@ class EverhartIIODESolver:
         self.n = None
         self.dt = dt0
         self.tmax = tmax
-        self.t0 = tmax
-        self.dt0 = t0
+        self.t0 = t0
+        self.dt0 = dt0
 
         self.t = np.array([t0], dtype='longdouble')
 
@@ -562,27 +563,66 @@ class EverhartIIODESolver:
 
         # starting alfa values estimation according chapter 3.3 from [Everhart1]
         for __ in range(4): # поэкспериментировать!!!
-            __, __, self.alfa = self._do_step(self.u, self.du_dt, self.f2, self.n, self.dt, self.h,
-                                              self.alfa)
-
+            __, __, self.alfa, __ = self._do_step(self.u, self.du_dt, self.f2, self.n, self.dt, self.h,
+                                                  self.alfa)
         i = 0
-        while (self.t[i] + self.dt) <= self.tmax:
+        dt_previous = self.dt
+        alfa_previous = self.alfa
+        dt_prev_previous = None
+        alfa_prev_previous = None
+        while self.t[i] <= self.tmax + self.dt0:
             self.n = i
-            u_next, du_dt_next, self.alfa = self._do_step(self.u, self.du_dt, self.f2, self.n, self.dt, self.h,
-                                                          self.alfa)
+            u_next, du_dt_next, self.alfa, tolerance_parameter = self._do_step(self.u, self.du_dt, self.f2, self.n,
+                                                                               self.dt, self.h, self.alfa)
             self.t = np.append(self.t, self.t[-1] + self.dt)
-            self._change_dt()
+
+            # correct alfa coefficients in case of changing dt according to p.38 of [Everhart1]
+            dt_prev_previous = dt_previous
+            alfa_prev_previous = alfa_previous
+            dt_previous = self.dt
+            alfa_previous = self.alfa
+            self._change_dt(tolerance_parameter)
+            if (dt_prev_previous is not None) and (dt_prev_previous != dt_previous):
+                for j in range(len(self.alfa)):
+                    self.alfa[j] = self._line_extrapolation(self.dt,
+                                                            dt_prev_previous, dt_previous,
+                                                            alfa_prev_previous[j], alfa_previous[j])
+
             self.u = np.vstack([self.u, u_next])
             self.du_dt = np.vstack([self.du_dt, du_dt_next])
             i += 1
 
         if self.is_adaptive_step:
-            # 2do: for the adaptive step: to implement the final interpolation on a uniform grid with dt0 step
-            pass
+            points_number = round((self.tmax - self.t0) / self.dt)
+            t_result = np.linspace(self.t0, self.tmax, points_number)
+            u_result = np.zeros((1, self.ode_system_size), dtype='longdouble')
+            # print(u_result)
+            # print(self.u)
+
+            for i in range(len(self.u[0])):
+                solution = self.u[:, i]
+                fu = interpolate.interp1d(self.t, solution)
+                solution_result = fu(t_result)
+
+                column = np.array([solution_result])
+
+                print(column)
+
+                #u_result = np.vstack([u_result, solution_result])
+
+
+
+
+            # for u_column in self.u:
+            #     for value in u_column:
+            #         print(value)
+
+
+
 
         return self.u, self.t
 
-    def _do_step(self, u, du_dt, f, n, dt, h, alfa) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def _do_step(self, u, du_dt, f, n, dt, h, alfa) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.longdouble]:
         """
         One-step integration solution
         :return: solution
@@ -621,7 +661,7 @@ class EverhartIIODESolver:
 
             # correct alfa coefficients according to (7) from [Everhart1]
             for j in range(i):
-                alfa[j] = self.divided_difference(j + 1, f_tau, tau)
+                alfa[j] = self._divided_difference(j + 1, f_tau, tau)
 
             # correct a coefficients according to (8) from [Everhart1]
             for j in range(i):
@@ -632,16 +672,28 @@ class EverhartIIODESolver:
         # correct final values of the function and derivative according to (14), (15) from [Everhart1]
         u_new, du_dt_new = self._extrapolate(dt, u_tau[0], du_dt_tau[0], f_tau[0], a)
 
-        return u_new, du_dt_new, alfa
+        # needs for dt correction on every step according to chapter 3.4 from [Everhart1]
+        # tolerance_parameter = (abs(a[-1] * dt ** (a_size + 2) / ((a_size + 2) * (a_size + 1)))).sum()
 
-    def _change_dt(self) -> None:
+        # tolerance_parameter = (((a_size + 2) * (a_size + 1)) / (dt * abs(a[-1]).sum())) ** (1 / (a_size + 2))
+
+        tolerance_parameter = (abs(a[-1] / ((a_size + 2) * (a_size + 1)))).sum()
+
+        return u_new, du_dt_new, alfa, tolerance_parameter
+
+    def _change_dt(self, tolerance_parameter) -> None:
         """
         Adaptive algorithm for changing the step by an additional row self.b1 of the Butcher tableau
         """
         if self.is_adaptive_step:
-            # 2do: to implement
-            raise ValueError('is_adaptive_step==True is not supported yet')
-            # self.dt = ...
+            desired_tolerance = 1e-2
+
+            a_size = len(self.h) - 1
+            #print(a_size + 2)
+            self.dt = ((desired_tolerance / tolerance_parameter) ** (1 / (a_size + 2)))
+            #print(self.dt)
+
+
 
     def _extrapolate(self, time: numpy.longdouble, u0: numpy.longdouble, du_dt0: numpy.longdouble, f0: numpy.longdouble,
                      a: numpy.array) -> Tuple[numpy.longdouble, numpy.longdouble]:
@@ -665,11 +717,10 @@ class EverhartIIODESolver:
         for i in range(len(a)):
             u_result += a[i] * time ** (i + 3) / ((i + 3) * (i + 2))
             du_result += a[i] * time ** (i + 2) / (i + 2)
-
         return u_result, du_result
 
     @staticmethod
-    def divided_difference(n: int, f: numpy.array, t: numpy.array) -> numpy.longdouble:
+    def _divided_difference(n: int, f: numpy.array, t: numpy.array) -> numpy.longdouble:
         """
         Calculation of divided difference according to (7) from [Everhart 1]
         :param n: the order of the divided difference
@@ -690,6 +741,27 @@ class EverhartIIODESolver:
             result += f[j] / product
 
         return result
+
+    @staticmethod
+    def _line_extrapolation(x: numpy.longdouble,
+                            x1: numpy.longdouble, x2: numpy.longdouble,
+                            y1: numpy.longdouble, y2: numpy.longdouble) -> numpy.longdouble:
+        """
+        Linear extrapolation
+        :param x: current parameter
+        :type x: numpy.longdouble
+        :param x1: first previous parameter
+        :type x1: numpy.longdouble
+        :param x2: second previous parameter
+        :type x2: numpy.longdouble
+        :param y1: function of first previous parameter
+        :type y1: numpy.longdouble
+        :param y2: function of second previous parameter
+        :type y2: numpy.longdouble
+        :return: extrapolated function of current parameter
+        :rtype: numpy.longdouble
+        """
+        return y1 + (y2 - y1) / (x2 - x1) * (x - x1)
 
 
 class EverhartIODESolver(EverhartIIODESolver):
@@ -737,7 +809,7 @@ class EverhartIODESolver(EverhartIIODESolver):
         for i in range(tau_size):
             # correct alfa coefficients according to (7) from [Everhart1]
             for j in range(a_size):
-                alfa[j] = self.divided_difference(j + 1, f_tau, tau)
+                alfa[j] = self._divided_difference(j + 1, f_tau, tau)
 
             # correct a coefficients according to (8) from [Everhart1]
             for j in range(a_size):
