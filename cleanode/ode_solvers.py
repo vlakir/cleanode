@@ -561,12 +561,7 @@ class EverhartIIODESolver:
         self.du_dt[0] = self.du_dt0
 
         # starting alfa values estimation according chapter 3.3 from [Everhart1]
-        for __ in range(0): # !!!!!!!!!!!!!!!!!!!!!!!!! 4
-
-
-
-
-
+        for __ in range(4): # поэкспериментировать!!!
             __, __, self.alfa = self._do_step(self.u, self.du_dt, self.f2, self.n, self.dt, self.h,
                                               self.alfa)
 
@@ -593,25 +588,11 @@ class EverhartIIODESolver:
         :return: solution
         :rtype: Tuple[np.ndarray, np.ndarray, np.ndarray]
         """
-        h = np.linspace(0, 1, len(h))
-
         tau = h * dt
 
         a_size = len(h) - 1
         tau_size = len(h)
         u_size = len(u[0])
-
-        f_tau = np.zeros([tau_size, u_size], dtype='longdouble')
-        u_tau = np.zeros([tau_size, u_size], dtype='longdouble')
-        du_dt_tau = np.zeros([tau_size, u_size], dtype='longdouble')
-        a = np.zeros([a_size, u_size], dtype='longdouble')
-
-        # initiation
-        u_tau[0] = u[n]
-        du_dt_tau[0] = du_dt[n]
-        f_tau[0] = f(u_tau[0], du_dt_tau[0], self.t[-1] + tau[0])  # !!!
-        u_tau[1], du_dt_tau[1] = self._extrapolate(tau[1], u_tau[0], du_dt_tau[0], f_tau[0], a)
-        f_tau[1] = f(u_tau[1], du_dt_tau[1], self.t[-1] + tau[1])  # !!!
 
         # (9) from [Everhart1]
         c = np.zeros([a_size, a_size], dtype='longdouble')
@@ -624,28 +605,29 @@ class EverhartIIODESolver:
                 elif 0 < j < i:
                     c[i, j] = c[i - 1, j - 1] - tau[i] * c[i - 1, j]
 
-        #alfa[0] = self.divided_difference(1, f_tau, tau)
+        f_tau = np.zeros([tau_size, u_size], dtype='longdouble')
+        u_tau = np.zeros([tau_size, u_size], dtype='longdouble')
+        du_dt_tau = np.zeros([tau_size, u_size], dtype='longdouble')
+        a = np.zeros([a_size, u_size], dtype='longdouble')
 
+        # initiation
+        u_tau[0] = u[n]
+        du_dt_tau[0] = du_dt[n]
+        f_tau[0] = f(u_tau[0], du_dt_tau[0], self.t[-1] + tau[0])  # !!!
 
+        for i in range(1, tau_size):
+            u_tau[i], du_dt_tau[i] = self._extrapolate(tau[i], u_tau[0], du_dt_tau[0], f_tau[0], a)
+            f_tau[i] = f(u_tau[i], du_dt_tau[i], self.t[-1] + tau[i])  # !!!
 
-        for i in range(2, tau_size):
             # correct alfa coefficients according to (7) from [Everhart1]
-            for j in range(i - 1):
+            for j in range(i):
                 alfa[j] = self.divided_difference(j + 1, f_tau, tau)
 
             # correct a coefficients according to (8) from [Everhart1]
             for j in range(i):
                 a[j] = alfa[j]
-                for k in range(1, a_size):
+                for k in range(j + 1, a_size):
                     a[j] += c[k, j] * alfa[k]
-
-            u_tau[i], du_dt_tau[i] = self._extrapolate(tau[i], u_tau[0], du_dt_tau[0], f_tau[0], a)
-
-            f_tau[i] = f(u_tau[i], du_dt_tau[i], self.t[-1] + tau[i])  # !!!
-
-
-            print(alfa)
-
 
         # correct final values of the function and derivative according to (14), (15) from [Everhart1]
         u_new, du_dt_new = self._extrapolate(dt, u_tau[0], du_dt_tau[0], f_tau[0], a)
