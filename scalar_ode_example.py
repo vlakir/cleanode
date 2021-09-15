@@ -114,7 +114,7 @@ if __name__ == '__main__':
     # calculation parameters:
     t0 = np.longdouble(0)
     tmax = np.longdouble(3)
-    dt0 = np.longdouble(0.03)
+    dt0 = np.longdouble(0.0479)
 
     points_number = int((tmax - t0) / dt0)
     time_exact = np.linspace(t0, tmax, points_number * 10)
@@ -148,7 +148,7 @@ if __name__ == '__main__':
 
     u0 = np.array([x0], dtype='longdouble')  # начальное положение
     du_dt0 = np.array([v0], dtype='longdouble')  # начальная скорость
-    solver = EverhartIIRadau15ODESolver(f2_1, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=True)
+    solver = EverhartIIRadau7ODESolver(f2_1, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=True)
     u3, t3 = solver.solve(print_benchmark=True, benchmark_name=solver.name)
     plt.plot(t3, u3, label=solver.name)
 
@@ -157,6 +157,9 @@ if __name__ == '__main__':
     u1, t1 = solver.solve(print_benchmark=True, benchmark_name=solver.name)
     solution_x = u1[:, 0]
     plt.plot(t1, solution_x, label=solver.name)
+
+    print(solution_x)
+
 
     c1 = x0 - (x0 - v0) / 2
     c2 = (x0 - v0) / 2

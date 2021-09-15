@@ -576,51 +576,59 @@ class EverhartIIODESolver:
                                                                                self.dt, self.h, self.alfa)
             self.t = np.append(self.t, self.t[-1] + self.dt)
 
+
+
             # correct alfa coefficients in case of changing dt according to p.38 of [Everhart1]
             dt_prev_previous = dt_previous
             alfa_prev_previous = alfa_previous
-            dt_previous = self.dt
             alfa_previous = self.alfa
+
+            dt_previous = self.dt
+
             self._change_dt(tolerance_parameter)
+
+            # self.alfa = np.zeros([len(self.h) - 1, len(self.u0)], dtype='longdouble')
+            # for __ in range(4):  # поэкспериментировать!!!
+            #     __, __, self.alfa, __ = self._do_step(self.u, self.du_dt, self.f2, self.n, self.dt, self.h,
+            #                                           self.alfa)
+
+
             if (dt_prev_previous is not None) and (dt_prev_previous != dt_previous):
                 for j in range(len(self.alfa)):
-                    self.alfa[j] = self._line_extrapolation(self.dt,
-                                                            dt_prev_previous, dt_previous,
-                                                            alfa_prev_previous[j], alfa_previous[j])
+
+                    #print(alfa_prev_previous[j], alfa_previous[j])
+
+                    # self.alfa[j] = self._line_extrapolation(self.dt,
+                    #                                         dt_prev_previous, dt_previous,
+                    #                                         alfa_prev_previous[j], alfa_previous[j])
+
+                    self.alfa[j] = self.alfa[j] * dt_previous / self.dt
 
             self.u = np.vstack([self.u, u_next])
             self.du_dt = np.vstack([self.du_dt, du_dt_next])
             i += 1
 
         if self.is_adaptive_step:
+        #if False:
             points_number = round((self.tmax - self.t0) / self.dt)
             t_result = np.linspace(self.t0, self.tmax, points_number)
-            u_result = np.zeros((1, self.ode_system_size), dtype='longdouble')
-            # print(u_result)
-            # print(self.u)
+            u_result = np.zeros((0, self.ode_system_size), dtype='longdouble')
 
             for i in range(len(self.u[0])):
                 solution = self.u[:, i]
                 fu = interpolate.interp1d(self.t, solution)
                 solution_result = fu(t_result)
 
-                column = np.array([solution_result])
+                for val in solution_result:
+                    u_result = np.vstack([u_result, val])
 
-                print(column)
+                print(len(self.u))
 
-                #u_result = np.vstack([u_result, solution_result])
-
-
-
-
-            # for u_column in self.u:
-            #     for value in u_column:
-            #         print(value)
+                return u_result, t_result
 
 
-
-
-        return self.u, self.t
+        else:
+            return self.u, self.t
 
     def _do_step(self, u, du_dt, f, n, dt, h, alfa) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.longdouble]:
         """
@@ -686,7 +694,7 @@ class EverhartIIODESolver:
         Adaptive algorithm for changing the step by an additional row self.b1 of the Butcher tableau
         """
         if self.is_adaptive_step:
-            desired_tolerance = 1e-2
+            desired_tolerance = 1e-8
 
             a_size = len(self.h) - 1
             #print(a_size + 2)
