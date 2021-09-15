@@ -540,20 +540,6 @@ class EverhartIIODESolver:
 
         self.t = np.array([t0], dtype='longdouble')
 
-        self.tau = self.h * self.dt
-        a_size = len(self.h) - 1
-
-        # (9) from [Everhart1]
-        self.c = np.zeros([a_size, a_size], dtype='longdouble')
-        for i in range(a_size):
-            for j in range(a_size):
-                if i == j:
-                    self.c[i, j] = 1
-                elif (j == 0) and (i > 0):
-                    self.c[i, j] = -self.tau[i] * self.c[i - 1, j]
-                elif 0 < j < i:
-                    self.c[i, j] = self.c[i - 1, j - 1] - self.tau[i] * self.c[i - 1, j]
-
         self.u0 = u0
         self.du_dt0 = du_dt0
 
@@ -575,14 +561,20 @@ class EverhartIIODESolver:
         self.du_dt[0] = self.du_dt0
 
         # starting alfa values estimation according chapter 3.3 from [Everhart1]
-        for __ in range(4):
-            __, __, self.alfa = self._do_step(self.u, self.du_dt, self.f2, self.n, self.dt, self.h, self.c, self.alfa)
+        for __ in range(0): # !!!!!!!!!!!!!!!!!!!!!!!!! 4
+
+
+
+
+
+            __, __, self.alfa = self._do_step(self.u, self.du_dt, self.f2, self.n, self.dt, self.h,
+                                              self.alfa)
 
         i = 0
         while (self.t[i] + self.dt) <= self.tmax:
             self.n = i
             u_next, du_dt_next, self.alfa = self._do_step(self.u, self.du_dt, self.f2, self.n, self.dt, self.h,
-                                                          self.c, self.alfa)
+                                                          self.alfa)
             self.t = np.append(self.t, self.t[-1] + self.dt)
             self._change_dt()
             self.u = np.vstack([self.u, u_next])
@@ -595,12 +587,14 @@ class EverhartIIODESolver:
 
         return self.u, self.t
 
-    def _do_step(self, u, du_dt, f, n, dt, h, c, alfa) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def _do_step(self, u, du_dt, f, n, dt, h, alfa) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         One-step integration solution
         :return: solution
         :rtype: Tuple[np.ndarray, np.ndarray, np.ndarray]
         """
+        h = np.linspace(0, 1, len(h))
+
         tau = h * dt
 
         a_size = len(h) - 1
@@ -615,24 +609,43 @@ class EverhartIIODESolver:
         # initiation
         u_tau[0] = u[n]
         du_dt_tau[0] = du_dt[n]
-        f_tau[0] = f(u_tau[0], du_dt_tau[0], tau[0])
+        f_tau[0] = f(u_tau[0], du_dt_tau[0], self.t[-1] + tau[0])  # !!!
         u_tau[1], du_dt_tau[1] = self._extrapolate(tau[1], u_tau[0], du_dt_tau[0], f_tau[0], a)
-        f_tau[1] = f(u_tau[1], du_dt_tau[1], tau[1])
+        f_tau[1] = f(u_tau[1], du_dt_tau[1], self.t[-1] + tau[1])  # !!!
 
-        for i in range(tau_size):
-            # correct alfa coefficients according to (7) from [Everhart1]
+        # (9) from [Everhart1]
+        c = np.zeros([a_size, a_size], dtype='longdouble')
+        for i in range(a_size):
             for j in range(a_size):
+                if i == j:
+                    c[i, j] = 1
+                elif (j == 0) and (i > 0):
+                    c[i, 0] = -tau[i] * c[i - 1, 0]
+                elif 0 < j < i:
+                    c[i, j] = c[i - 1, j - 1] - tau[i] * c[i - 1, j]
+
+        #alfa[0] = self.divided_difference(1, f_tau, tau)
+
+
+
+        for i in range(2, tau_size):
+            # correct alfa coefficients according to (7) from [Everhart1]
+            for j in range(i - 1):
                 alfa[j] = self.divided_difference(j + 1, f_tau, tau)
 
             # correct a coefficients according to (8) from [Everhart1]
-            for j in range(a_size):
+            for j in range(i):
                 a[j] = alfa[j]
-                for k in range(a_size):
+                for k in range(1, a_size):
                     a[j] += c[k, j] * alfa[k]
 
-            for j in range(tau_size):
-                u_tau[j], du_dt_tau[j] = self._extrapolate(tau[j], u_tau[0], du_dt_tau[0], f_tau[0], a)
-                f_tau[j] = f(u_tau[j], du_dt_tau[j], tau[j])
+            u_tau[i], du_dt_tau[i] = self._extrapolate(tau[i], u_tau[0], du_dt_tau[0], f_tau[0], a)
+
+            f_tau[i] = f(u_tau[i], du_dt_tau[i], self.t[-1] + tau[i])  # !!!
+
+
+            print(alfa)
+
 
         # correct final values of the function and derivative according to (14), (15) from [Everhart1]
         u_new, du_dt_new = self._extrapolate(dt, u_tau[0], du_dt_tau[0], f_tau[0], a)
@@ -670,6 +683,7 @@ class EverhartIIODESolver:
         for i in range(len(a)):
             u_result += a[i] * time ** (i + 3) / ((i + 3) * (i + 2))
             du_result += a[i] * time ** (i + 2) / (i + 2)
+
         return u_result, du_result
 
     @staticmethod
@@ -692,6 +706,7 @@ class EverhartIIODESolver:
                 if j != i:
                     product *= t[j] - t[i]
             result += f[j] / product
+
         return result
 
 
@@ -781,7 +796,7 @@ class EverhartIODESolver(EverhartIIODESolver):
 
         u_result = u0 + f0 * time
         for i in range(len(a)):
-            u_result += a[i] * time ** (i + 2) / (i + 2) / 2  # ????????????????????????? /2
+            u_result += a[i] * time ** (i + 2) / (i + 2)  # ????????????????????????? /2
         return u_result
 
 

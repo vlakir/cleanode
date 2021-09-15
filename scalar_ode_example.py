@@ -163,7 +163,6 @@ if __name__ == '__main__':
     x_exact = c1 * np.exp(time_exact) + c2 / np.exp(time_exact)
     plt.plot(time_exact, x_exact, label='Exact analytical solution')
 
-
     plt.legend()
 
     plt.show()
