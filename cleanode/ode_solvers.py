@@ -616,7 +616,7 @@ class EverhartIIODESolver:
 
             for i in range(len(self.u[0])):
                 solution = self.u[:, i]
-                fu = interpolate.interp1d(self.t, solution)
+                fu = interpolate.interp1d(self.t, solution, kind='cubic')
                 solution_result = fu(t_result)
 
                 for val in solution_result:
