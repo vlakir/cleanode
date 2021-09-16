@@ -165,9 +165,9 @@ class GenericExplicitRKODESolver:
         if self.is_adaptive_step:
             order = len(self.a)
 
-            # non-standart desired_tolerance coeff 1e8 (instead of 1 in classic algorithm) used for
-            # approximate comparability with Everhart's stepsize calculate algorithm
-            # 2do: find out why the error estimates are so different
+            # stuppid empirical equation used for approximate comparability with Everhart's stepsize calculate algorithm
+            # 2do: find out mathematical correct way
+            #      (e.g. see: here: https://en.wikipedia.org/wiki/Runge–Kutta–Fehlberg_method)
             self.dt = 0.9 * self.dt * ((desired_tolerance * 1e8) / real_tolerance) ** (1 / order)
 
 
@@ -848,6 +848,8 @@ class EverhartIIODESolver:
         """
         self.name = f'{order} order Everhart II method using {quadpy_function.__name__} quadrature'
 
+        self.order = order
+
         degree = round((order + 1) / 2)
 
         self.h = (quadpy_function(degree).points + 1) / 2
@@ -978,9 +980,9 @@ class EverhartIIODESolver:
         u_new, du_dt_new = self._extrapolate(dt, u_tau[0], du_dt_tau[0], f_tau[0], a)
 
         # needs for dt correction on every step according to chapter 3.4 from [Everhart1]
-        tolerance_parameter = (abs(a[-1] / ((a_size + 2) * (a_size + 1)))).sum()
+        real_tolerance = (abs(a[-1] / ((a_size + 2) * (a_size + 1)))).sum()
 
-        return u_new, du_dt_new, alfa, tolerance_parameter
+        return u_new, du_dt_new, alfa, real_tolerance
 
     def _change_dt(self, real_tolerance: float, desired_tolerance: float) -> None:
         """
@@ -992,6 +994,7 @@ class EverhartIIODESolver:
         """
         if self.is_adaptive_step:
             a_size = len(self.h) - 1
+            # according to chapter 3.4 from [Everhart1]
             self.dt = ((desired_tolerance / real_tolerance) ** (1 / (a_size + 2)))
 
     @staticmethod
@@ -1041,45 +1044,6 @@ class EverhartIIODESolver:
             result += f[j] / product
 
         return result
-
-
-class EverhartIIRadau27ODESolver(EverhartIIODESolver):
-    """
-    Implements original Everhart II 27-order method [Everhart1] using Radau quadrature
-    [Everhart1] Everhart Е. Implicit single-sequence methods for integrating orbits.
-                //Celestial Mechanics. 1974. 10. P.35-55.
-    """
-    def __init__(self, f2: Callable,
-                 u0: np.ndarray,
-                 du_dt0: np.ndarray,
-                 t0: numpy.longdouble,
-                 tmax: numpy.longdouble,
-                 dt0: numpy.longdouble,
-                 is_adaptive_step=False,
-                 tolerance=1e-8
-                 ):
-        """
-        :param f2: function for calculating of right parts of 2nd order ODE
-        :type f2: Callable
-        :param u0: initial conditions of required function
-        :type u0: np.ndarray
-        :param du_dt0: initial conditions of required function's derivative
-        :type du_dt0: np.ndarray
-        :param t0: lower limit of integration
-        :type t0: numpy.longdouble
-        :param tmax: upper limit of integration
-        :type tmax: numpy.longdouble
-        :param dt0: initial step of integration
-        :type dt0: numpy.longdouble
-        :param is_adaptive_step: use adaptive time step
-        :type is_adaptive_step: bool
-        :param tolerance: desired tolerance (needs for adaptive step only)
-        :type tolerance: float
-        """
-        self.order = 27
-        quad = quadpy.c1.gauss_radau
-        super().__init__(self.order, quad, f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step,
-                         tolerance=tolerance)
 
 
 class EverhartIIRadau21ODESolver(EverhartIIODESolver):
@@ -1192,44 +1156,6 @@ class EverhartIIRadau7ODESolver(EverhartIIODESolver):
         """
         self.order = 7
         quad = quadpy.c1.gauss_radau
-        super().__init__(self.order, quad, f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step,
-                         tolerance=tolerance)
-
-
-class EverhartIILobatto27ODESolver(EverhartIIODESolver):
-    """
-    Implements original Everhart II 27-order method [Everhart1] using Lobatto quadrature
-    [Everhart1] Everhart Е. Implicit single-sequence methods for integrating orbits.
-                //Celestial Mechanics. 1974. 10. P.35-55.
-    """
-    def __init__(self, f2: Callable,
-                 u0: np.ndarray,
-                 du_dt0: np.ndarray,
-                 t0: numpy.longdouble,
-                 tmax: numpy.longdouble,
-                 dt0: numpy.longdouble,
-                 is_adaptive_step=False,
-                 tolerance=1e-8):
-        """
-        :param f2: function for calculating of right parts of 2nd order ODE
-        :type f2: Callable
-        :param u0: initial conditions of required function
-        :type u0: np.ndarray
-        :param du_dt0: initial conditions of required function's derivative
-        :type du_dt0: np.ndarray
-        :param t0: lower limit of integration
-        :type t0: numpy.longdouble
-        :param tmax: upper limit of integration
-        :type tmax: numpy.longdouble
-        :param dt0: initial step of integration
-        :type dt0: numpy.longdouble
-        :param is_adaptive_step: use adaptive time step
-        :type is_adaptive_step: bool
-        :param tolerance: desired tolerance (needs for adaptive step only)
-        :type tolerance: float
-        """
-        self.order = 27
-        quad = quadpy.c1.gauss_lobatto
         super().__init__(self.order, quad, f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step,
                          tolerance=tolerance)
 
