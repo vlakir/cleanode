@@ -1,3 +1,5 @@
+import math
+
 import numpy as np
 import matplotlib.pyplot as plt
 from typing import Union, List
@@ -22,9 +24,9 @@ if __name__ == '__main__':
 
         # Mathematically, the ODE system looks like this:
         # dx/dt = Vx
-        # dVx/dt = 0
+        # dVx/dt = -x / sqrt(x^2 + y^2)^3
         # dy/dt = Vy
-        # dVy/dt = -g
+        # dVy/dt = -x / sqrt(x^2 + y^2)^3
 
         g = const.g
 
@@ -35,18 +37,12 @@ if __name__ == '__main__':
 
         right_sides = [
             vx,
-            0,
+            -x / math.sqrt(x**2 + y**2)**3,
             vy,
-            -g
+            -y / math.sqrt(x**2 + y**2)**3
             ]
 
         return right_sides
-
-    # noinspection PyUnusedLocal
-    def exact_f(t):
-        x = x0 + vx0 * time_exact
-        y = y0 + vy0 * time_exact - const.g * time_exact ** 2 / 2
-        return x, y
 
     # noinspection PyUnusedLocal
     def f2(u: np.longdouble, du_dt: np.longdouble, t: Union[np.ndarray, np.longdouble]) -> np.array:
@@ -63,56 +59,55 @@ if __name__ == '__main__':
         """
 
         # Mathematically, the ODE system looks like this:
-        # d(dx)/dt = 0
-        # d(dy)/dt = -g
+        # d(dx)/dt^2 = -x / sqrt(x^2 + y^2)^3
+        # d(dy)/dt^2 = -x / sqrt(x^2 + y^2)^3
 
-        g = const.g
-
-        vx = u[0]
-        vy = u[1]
+        x = u[0]
+        y = u[1]
 
         right_sides = np.array([
-            0,
-            -g
+            -x / math.sqrt(x**2 + y**2)**3,
+            -y / math.sqrt(x**2 + y**2)**3,
         ], dtype='longdouble')
 
         return right_sides
 
+    # noinspection PyUnusedLocal
+    def exact_f(t):
+        x = np.sin(t)
+        y = np.cos(t)
+        return x, y
 
     # calculation parameters:
     t0 = np.longdouble(0)
-    tmax = np.longdouble(3)
-    dt0 = np.longdouble(0.3)
+    tmax = np.longdouble(2 * math.pi)
+    dt0 = np.longdouble(0.1)
 
     # initial conditions:
     x0 = np.longdouble(0)
-    y0 = np.longdouble(0)
-    v0 = np.longdouble(5)
-    angle_degrees = 80
-
-    angle_radians = angle_degrees * np.pi / 180
-    vx0 = v0 * np.cos(angle_radians)
-    vy0 = v0 * np.sin(angle_radians)
+    y0 = np.longdouble(1)
+    vx0 = np.longdouble(1)
+    vy0 = np.longdouble(0)
 
     u0 = np.array([x0, vx0, y0, vy0], dtype='longdouble')
-    solver = RungeKutta4ODESolver(f, u0, t0, tmax, dt0, is_adaptive_step=False, tolerance=1e-8)
+    solver = RungeKutta4ODESolver(f, u0, t0, tmax, dt0, is_adaptive_step=True, tolerance=1e-8)
     solution, time_points = solver.solve(print_benchmark=True, benchmark_name=solver.name)
     x_solution = solution[:, 0]
     y_solution = solution[:, 2]
-    plt.plot(x_solution, time_points, label=solver.name)
+    plt.plot(time_points, x_solution, label=solver.name)
 
     u0 = np.array([x0, y0], dtype='longdouble')
     du_dt0 = np.array([vx0, vy0], dtype='longdouble')
-    solver = EverhartIIRadau7ODESolver(f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=False, tolerance=1e-8)
+    solver = EverhartIIRadau7ODESolver(f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=True, tolerance=1e-8)
     solution, time_points = solver.solve(print_benchmark=True, benchmark_name=solver.name)
     x_solution1 = solution[:, 0]
     y_solution1 = solution[:, 1]
-    plt.plot(x_solution1, time_points, label=solver.name)
+    plt.plot(time_points, x_solution1, label=solver.name)
 
     points_number = int((tmax - t0) / dt0)
-    time_exact = np.linspace(t0, tmax, points_number * 10)
+    time_exact = np.linspace(t0, t0 + dt0 * points_number, (points_number + 1) * 10)
     x_exact, y_exact = exact_f(time_exact)
-    plt.plot(x_exact, time_exact, label='Exact analytical solution')
+    plt.plot(time_exact, x_exact, label='Exact analytical solution')
 
     plt.legend()
     plt.show()

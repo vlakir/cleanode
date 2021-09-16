@@ -19,6 +19,7 @@ class GenericExplicitRKODESolver:
                  butcher_tableau=None,
                  name='method name is not defined',
                  is_adaptive_step=False,
+                 is_interpolate=True,
                  tolerance=1e-8):
         """
         :param f: function for calculating right parts of 1st order ODE
@@ -37,6 +38,8 @@ class GenericExplicitRKODESolver:
         :type name: string
         :param is_adaptive_step: use adaptive time step
         :type is_adaptive_step: bool
+        :param is_interpolate: interpolate result to uniform dt0 step (needs for adaptive step only)
+        :type is_interpolate: bool
         :param tolerance: desired tolerance (needs for adaptive step only)
         :type tolerance: float
         """
@@ -44,8 +47,6 @@ class GenericExplicitRKODESolver:
         self.f = f
         self.name = name
         self.butcher_tableau = butcher_tableau
-
-        self.tolerance = tolerance
 
         if self.butcher_tableau is None:
             raise ValueError('Butcher tableau is not defined')
@@ -68,6 +69,8 @@ class GenericExplicitRKODESolver:
                              ' It is not allowed for an explicit Runge-Kutta method.')
 
         self.is_adaptive_step = is_adaptive_step
+        self.is_interpolate = is_interpolate
+        self.tolerance = tolerance
 
         self.u = None
         self.n = None
@@ -115,14 +118,14 @@ class GenericExplicitRKODESolver:
             self.u = np.vstack([self.u, u_next])
             i += 1
 
-        if self.is_adaptive_step:
+        if self.is_adaptive_step and self.is_interpolate:
             points_number = int((self.tmax - self.t0) / self.dt0)
 
             t_result = np.linspace(self.t0, self.t0 + self.dt0 * points_number, points_number + 1)
             u_result = np.zeros((self.ode_system_size, len(t_result)), dtype='longdouble')
 
             for i in range(len(self.u[0])):
-                solution = self.u[:, i]
+                solution = self.u[:, -1 - i]
                 fu = interpolate.interp1d(self.t, solution, kind='cubic', fill_value="extrapolate")
                 solution_result = fu(t_result)
                 u_result[i] = solution_result
@@ -203,6 +206,8 @@ class EulerODESolver(GenericExplicitRKODESolver):
         :type name: string
         :param is_adaptive_step: use adaptive time step
         :type is_adaptive_step: bool
+        :param is_interpolate: interpolate result to uniform dt0 step (needs for adaptive step only)
+        :type is_interpolate: bool
         :param tolerance: desired tolerance (needs for adaptive step only)
         :type tolerance: float
         """
@@ -242,6 +247,8 @@ class MidpointODESolver(GenericExplicitRKODESolver):
         :type name: string
         :param is_adaptive_step: use adaptive time step
         :type is_adaptive_step: bool
+        :param is_interpolate: interpolate result to uniform dt0 step (needs for adaptive step only)
+        :type is_interpolate: bool
         :param tolerance: desired tolerance (needs for adaptive step only)
         :type tolerance: float
         """
@@ -284,6 +291,8 @@ class RungeKutta4ODESolver(GenericExplicitRKODESolver):
         :type name: string
         :param is_adaptive_step: use adaptive time step
         :type is_adaptive_step: bool
+        :param is_interpolate: interpolate result to uniform dt0 step (needs for adaptive step only)
+        :type is_interpolate: bool
         :param tolerance: desired tolerance (needs for adaptive step only)
         :type tolerance: float
         """
@@ -328,6 +337,8 @@ class Fehlberg45Solver(GenericExplicitRKODESolver):
         :type name: string
         :param is_adaptive_step: use adaptive time step
         :type is_adaptive_step: bool
+        :param is_interpolate: interpolate result to uniform dt0 step (needs for adaptive step only)
+        :type is_interpolate: bool
         :param tolerance: desired tolerance (needs for adaptive step only)
         :type tolerance: float
         """
@@ -367,6 +378,8 @@ class Ralston2ODESolver(GenericExplicitRKODESolver):
         :type name: string
         :param is_adaptive_step: use adaptive time step
         :type is_adaptive_step: bool
+        :param is_interpolate: interpolate result to uniform dt0 step (needs for adaptive step only)
+        :type is_interpolate: bool
         :param tolerance: desired tolerance (needs for adaptive step only)
         :type tolerance: float
         """
@@ -407,6 +420,8 @@ class RungeKutta3ODESolver(GenericExplicitRKODESolver):
         :type name: string
         :param is_adaptive_step: use adaptive time step
         :type is_adaptive_step: bool
+        :param is_interpolate: interpolate result to uniform dt0 step (needs for adaptive step only)
+        :type is_interpolate: bool
         :param tolerance: desired tolerance (needs for adaptive step only)
         :type tolerance: float
         """
@@ -447,6 +462,8 @@ class Heun3ODESolver(GenericExplicitRKODESolver):
         :type name: string
         :param is_adaptive_step: use adaptive time step
         :type is_adaptive_step: bool
+        :param is_interpolate: interpolate result to uniform dt0 step (needs for adaptive step only)
+        :type is_interpolate: bool
         :param tolerance: desired tolerance (needs for adaptive step only)
         :type tolerance: float
         """
@@ -487,6 +504,8 @@ class Ralston3ODESolver(GenericExplicitRKODESolver):
         :type name: string
         :param is_adaptive_step: use adaptive time step
         :type is_adaptive_step: bool
+        :param is_interpolate: interpolate result to uniform dt0 step (needs for adaptive step only)
+        :type is_interpolate: bool
         :param tolerance: desired tolerance (needs for adaptive step only)
         :type tolerance: float
         """
@@ -527,6 +546,8 @@ class SSPRK3ODESolver(GenericExplicitRKODESolver):
         :type name: string
         :param is_adaptive_step: use adaptive time step
         :type is_adaptive_step: bool
+        :param is_interpolate: interpolate result to uniform dt0 step (needs for adaptive step only)
+        :type is_interpolate: bool
         :param tolerance: desired tolerance (needs for adaptive step only)
         :type tolerance: float
         """
@@ -568,6 +589,8 @@ class Ralston4ODESolver(GenericExplicitRKODESolver):
         :type name: string
         :param is_adaptive_step: use adaptive time step
         :type is_adaptive_step: bool
+        :param is_interpolate: interpolate result to uniform dt0 step (needs for adaptive step only)
+        :type is_interpolate: bool
         :param tolerance: desired tolerance (needs for adaptive step only)
         :type tolerance: float
         """
@@ -609,6 +632,8 @@ class Rule384ODESolver(GenericExplicitRKODESolver):
         :type name: string
         :param is_adaptive_step: use adaptive time step
         :type is_adaptive_step: bool
+        :param is_interpolate: interpolate result to uniform dt0 step (needs for adaptive step only)
+        :type is_interpolate: bool
         :param tolerance: desired tolerance (needs for adaptive step only)
         :type tolerance: float
         """
@@ -670,6 +695,8 @@ class Fehlberg21ODESolver(GenericExplicitRKODESolver):
         :type name: string
         :param is_adaptive_step: use adaptive time step
         :type is_adaptive_step: bool
+        :param is_interpolate: interpolate result to uniform dt0 step (needs for adaptive step only)
+        :type is_interpolate: bool
         :param tolerance: desired tolerance (needs for adaptive step only)
         :type tolerance: float
         """
@@ -712,6 +739,8 @@ class BogackiShampine32ODESolver(GenericExplicitRKODESolver):
         :type name: string
         :param is_adaptive_step: use adaptive time step
         :type is_adaptive_step: bool
+        :param is_interpolate: interpolate result to uniform dt0 step (needs for adaptive step only)
+        :type is_interpolate: bool
         :param tolerance: desired tolerance (needs for adaptive step only)
         :type tolerance: float
         """
@@ -756,6 +785,8 @@ class CashKarp54ODESolver(GenericExplicitRKODESolver):
         :type name: string
         :param is_adaptive_step: use adaptive time step
         :type is_adaptive_step: bool
+        :param is_interpolate: interpolate result to uniform dt0 step (needs for adaptive step only)
+        :type is_interpolate: bool
         :param tolerance: desired tolerance (needs for adaptive step only)
         :type tolerance: float
         """
@@ -801,6 +832,8 @@ class DormandPrince54ODESolver(GenericExplicitRKODESolver):
         :type name: string
         :param is_adaptive_step: use adaptive time step
         :type is_adaptive_step: bool
+        :param is_interpolate: interpolate result to uniform dt0 step (needs for adaptive step only)
+        :type is_interpolate: bool
         :param tolerance: desired tolerance (needs for adaptive step only)
         :type tolerance: float
         """
@@ -823,6 +856,7 @@ class EverhartIIODESolver:
                  tmax: numpy.longdouble,
                  dt0: numpy.longdouble,
                  is_adaptive_step=False,
+                 is_interpolate=True,
                  tolerance=1e-8):
         """
         :param order: order of method
@@ -843,6 +877,8 @@ class EverhartIIODESolver:
         :type dt0: numpy.longdouble
         :param is_adaptive_step: use adaptive time step
         :type is_adaptive_step: bool
+        :param is_interpolate: interpolate result to uniform dt0 step (needs for adaptive step only)
+        :type is_interpolate: bool
         :param tolerance: desired tolerance (needs for adaptive step only)
         :type tolerance: float
         """
@@ -857,6 +893,8 @@ class EverhartIIODESolver:
         self.f2 = f2
 
         self.is_adaptive_step = is_adaptive_step
+        self.is_interpolate = is_interpolate
+
         self.tolerance = tolerance
 
         self.u = None
@@ -911,14 +949,14 @@ class EverhartIIODESolver:
             self.du_dt = np.vstack([self.du_dt, du_dt_next])
             i += 1
 
-        if self.is_adaptive_step:
+        if self.is_adaptive_step and self.is_interpolate:
             points_number = int((self.tmax - self.t0) / self.dt0)
 
             t_result = np.linspace(self.t0, self.t0 + self.dt0 * points_number, points_number + 1)
             u_result = np.zeros((self.ode_system_size, len(t_result)), dtype='longdouble')
 
             for i in range(len(self.u[0])):
-                solution = self.u[:, i]
+                solution = self.u[:, -1 - i]
                 fu = interpolate.interp1d(self.t, solution, kind='cubic', fill_value="extrapolate")
                 solution_result = fu(t_result)
                 u_result[i] = solution_result
@@ -1059,29 +1097,32 @@ class EverhartIIRadau21ODESolver(EverhartIIODESolver):
                  tmax: numpy.longdouble,
                  dt0: numpy.longdouble,
                  is_adaptive_step=False,
+                 is_interpolate=True,
                  tolerance=1e-8):
         """
-                :param f2: function for calculating of right parts of 2nd order ODE
-                :type f2: Callable
-                :param u0: initial conditions of required function
-                :type u0: np.ndarray
-                :param du_dt0: initial conditions of required function's derivative
-                :type du_dt0: np.ndarray
-                :param t0: lower limit of integration
-                :type t0: numpy.longdouble
-                :param tmax: upper limit of integration
-                :type tmax: numpy.longdouble
-                :param dt0: initial step of integration
-                :type dt0: numpy.longdouble
-                :param is_adaptive_step: use adaptive time step
-                :type is_adaptive_step: bool
-                :param tolerance: desired tolerance (needs for adaptive step only)
-                :type tolerance: float
-                """
+        :param f2: function for calculating of right parts of 2nd order ODE
+        :type f2: Callable
+        :param u0: initial conditions of required function
+        :type u0: np.ndarray
+        :param du_dt0: initial conditions of required function's derivative
+        :type du_dt0: np.ndarray
+        :param t0: lower limit of integration
+        :type t0: numpy.longdouble
+        :param tmax: upper limit of integration
+        :type tmax: numpy.longdouble
+        :param dt0: initial step of integration
+        :type dt0: numpy.longdouble
+        :param is_adaptive_step: use adaptive time step
+        :type is_adaptive_step: bool
+        :param is_interpolate: interpolate result to uniform dt0 step (needs for adaptive step only)
+        :type is_interpolate: bool
+        :param tolerance: desired tolerance (needs for adaptive step only)
+        :type tolerance: float
+        """
         self.order = 21
         quad = quadpy.c1.gauss_radau
         super().__init__(self.order, quad, f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step,
-                         tolerance=tolerance)
+                         is_interpolate=is_interpolate, tolerance=tolerance)
 
 
 class EverhartIIRadau15ODESolver(EverhartIIODESolver):
@@ -1097,6 +1138,7 @@ class EverhartIIRadau15ODESolver(EverhartIIODESolver):
                  tmax: numpy.longdouble,
                  dt0: numpy.longdouble,
                  is_adaptive_step=False,
+                 is_interpolate=True,
                  tolerance=1e-8):
         """
         :param f2: function for calculating of right parts of 2nd order ODE
@@ -1119,7 +1161,7 @@ class EverhartIIRadau15ODESolver(EverhartIIODESolver):
         self.order = 15
         quad = quadpy.c1.gauss_radau
         super().__init__(self.order, quad, f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step,
-                         tolerance=tolerance)
+                         is_interpolate=is_interpolate, tolerance=tolerance)
 
 
 class EverhartIIRadau7ODESolver(EverhartIIODESolver):
@@ -1135,6 +1177,7 @@ class EverhartIIRadau7ODESolver(EverhartIIODESolver):
                  tmax: numpy.longdouble,
                  dt0: numpy.longdouble,
                  is_adaptive_step=False,
+                 is_interpolate=True,
                  tolerance=1e-8):
         """
         :param f2: function for calculating of right parts of 2nd order ODE
@@ -1151,13 +1194,15 @@ class EverhartIIRadau7ODESolver(EverhartIIODESolver):
         :type dt0: numpy.longdouble
         :param is_adaptive_step: use adaptive time step
         :type is_adaptive_step: bool
+        :param is_interpolate: interpolate result to uniform dt0 step (needs for adaptive step only)
+        :type is_interpolate: bool
         :param tolerance: desired tolerance (needs for adaptive step only)
         :type tolerance: float
         """
         self.order = 7
         quad = quadpy.c1.gauss_radau
         super().__init__(self.order, quad, f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step,
-                         tolerance=tolerance)
+                         is_interpolate=is_interpolate, tolerance=tolerance)
 
 
 class EverhartIILobatto21ODESolver(EverhartIIODESolver):
@@ -1173,6 +1218,7 @@ class EverhartIILobatto21ODESolver(EverhartIIODESolver):
                  tmax: numpy.longdouble,
                  dt0: numpy.longdouble,
                  is_adaptive_step=False,
+                 is_interpolate=True,
                  tolerance=1e-8):
         """
         :param f2: function for calculating of right parts of 2nd order ODE
@@ -1189,13 +1235,15 @@ class EverhartIILobatto21ODESolver(EverhartIIODESolver):
         :type dt0: numpy.longdouble
         :param is_adaptive_step: use adaptive time step
         :type is_adaptive_step: bool
+        :param is_interpolate: interpolate result to uniform dt0 step (needs for adaptive step only)
+        :type is_interpolate: bool
         :param tolerance: desired tolerance (needs for adaptive step only)
         :type tolerance: float
         """
         self.order = 21
         quad = quadpy.c1.gauss_lobatto
         super().__init__(self.order, quad, f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step,
-                         tolerance=tolerance)
+                         is_interpolate=is_interpolate, tolerance=tolerance)
 
 
 class EverhartIILobatto15ODESolver(EverhartIIODESolver):
@@ -1211,6 +1259,7 @@ class EverhartIILobatto15ODESolver(EverhartIIODESolver):
                  tmax: numpy.longdouble,
                  dt0: numpy.longdouble,
                  is_adaptive_step=False,
+                 is_interpolate=True,
                  tolerance=1e-8):
         """
         :param f2: function for calculating of right parts of 2nd order ODE
@@ -1227,13 +1276,15 @@ class EverhartIILobatto15ODESolver(EverhartIIODESolver):
         :type dt0: numpy.longdouble
         :param is_adaptive_step: use adaptive time step
         :type is_adaptive_step: bool
+        :param is_interpolate: interpolate result to uniform dt0 step (needs for adaptive step only)
+        :type is_interpolate: bool
         :param tolerance: desired tolerance (needs for adaptive step only)
         :type tolerance: float
         """
         self.order = 15
         quad = quadpy.c1.gauss_lobatto
         super().__init__(self.order, quad, f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step,
-                         tolerance=tolerance)
+                         is_interpolate=is_interpolate, tolerance=tolerance)
 
 
 class EverhartIILobatto7ODESolver(EverhartIIODESolver):
@@ -1249,6 +1300,7 @@ class EverhartIILobatto7ODESolver(EverhartIIODESolver):
                  tmax: numpy.longdouble,
                  dt0: numpy.longdouble,
                  is_adaptive_step=False,
+                 is_interpolate=True,
                  tolerance=1e-8):
         """
         :param f2: function for calculating of right parts of 2nd order ODE
@@ -1265,10 +1317,12 @@ class EverhartIILobatto7ODESolver(EverhartIIODESolver):
         :type dt0: numpy.longdouble
         :param is_adaptive_step: use adaptive time step
         :type is_adaptive_step: bool
+        :param is_interpolate: interpolate result to uniform dt0 step (needs for adaptive step only)
+        :type is_interpolate: bool
         :param tolerance: desired tolerance (needs for adaptive step only)
         :type tolerance: float
         """
         self.order = 7
         quad = quadpy.c1.gauss_lobatto
         super().__init__(self.order, quad, f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step,
-                         tolerance=tolerance)
+                         is_interpolate=is_interpolate, tolerance=tolerance)
