@@ -18,7 +18,8 @@ class GenericExplicitRKODESolver:
                  dt0: numpy.longdouble,
                  butcher_tableau=None,
                  name='method name is not defined',
-                 is_adaptive_step=False):
+                 is_adaptive_step=False,
+                 tolerance=1e-8):
         """
         :param f: function for calculating right parts of 1st order ODE
         :type f: Callable
@@ -36,11 +37,15 @@ class GenericExplicitRKODESolver:
         :type name: string
         :param is_adaptive_step: use adaptive time step
         :type is_adaptive_step: bool
+        :param tolerance: desired tolerance (needs for adaptive step only)
+        :type tolerance: float
         """
 
         self.f = f
         self.name = name
         self.butcher_tableau = butcher_tableau
+
+        self.tolerance = tolerance
 
         if self.butcher_tableau is None:
             raise ValueError('Butcher tableau is not defined')
@@ -160,6 +165,26 @@ class EulerODESolver(GenericExplicitRKODESolver):
     name = 'Euler method'
 
     def __init__(self, *args, **kwargs):
+        """
+        :param f: function for calculating right parts of 1st order ODE
+        :type f: Callable
+        :param u0: initial conditions
+        :type u0: np.array
+        :param t0: lower limit of integration
+        :type t0: numpy.longdouble
+        :param tmax: upper limit of integration
+        :type tmax: numpy.longdouble
+        :param dt0: initial step of integration
+        :type dt0: numpy.longdouble
+        :param butcher_tableau: Butcher tableau
+        :type butcher_tableau: np.array
+        :param name: method name
+        :type name: string
+        :param is_adaptive_step: use adaptive time step
+        :type is_adaptive_step: bool
+        :param tolerance: desired tolerance (needs for adaptive step only)
+        :type tolerance: float
+        """
         super().__init__(*args, **kwargs, butcher_tableau=self.butcher_tableau, name=self.name)
 
 
@@ -179,6 +204,26 @@ class MidpointODESolver(GenericExplicitRKODESolver):
     name = 'Explicit midpoint method'
 
     def __init__(self, *args, **kwargs):
+        """
+        :param f: function for calculating right parts of 1st order ODE
+        :type f: Callable
+        :param u0: initial conditions
+        :type u0: np.array
+        :param t0: lower limit of integration
+        :type t0: numpy.longdouble
+        :param tmax: upper limit of integration
+        :type tmax: numpy.longdouble
+        :param dt0: initial step of integration
+        :type dt0: numpy.longdouble
+        :param butcher_tableau: Butcher tableau
+        :type butcher_tableau: np.array
+        :param name: method name
+        :type name: string
+        :param is_adaptive_step: use adaptive time step
+        :type is_adaptive_step: bool
+        :param tolerance: desired tolerance (needs for adaptive step only)
+        :type tolerance: float
+        """
         super().__init__(*args, **kwargs, butcher_tableau=self.butcher_tableau, name=self.name)
 
 
@@ -200,6 +245,26 @@ class RungeKutta4ODESolver(GenericExplicitRKODESolver):
     name = 'Fourth-order Runge–Kutta method'
 
     def __init__(self, *args, **kwargs):
+        """
+        :param f: function for calculating right parts of 1st order ODE
+        :type f: Callable
+        :param u0: initial conditions
+        :type u0: np.array
+        :param t0: lower limit of integration
+        :type t0: numpy.longdouble
+        :param tmax: upper limit of integration
+        :type tmax: numpy.longdouble
+        :param dt0: initial step of integration
+        :type dt0: numpy.longdouble
+        :param butcher_tableau: Butcher tableau
+        :type butcher_tableau: np.array
+        :param name: method name
+        :type name: string
+        :param is_adaptive_step: use adaptive time step
+        :type is_adaptive_step: bool
+        :param tolerance: desired tolerance (needs for adaptive step only)
+        :type tolerance: float
+        """
         super().__init__(*args, **kwargs, butcher_tableau=self.butcher_tableau, name=self.name)
 
 
@@ -224,6 +289,26 @@ class Fehlberg45Solver(GenericExplicitRKODESolver):
     name = 'Fehlberg method'
 
     def __init__(self, *args, **kwargs):
+        """
+        :param f: function for calculating right parts of 1st order ODE
+        :type f: Callable
+        :param u0: initial conditions
+        :type u0: np.array
+        :param t0: lower limit of integration
+        :type t0: numpy.longdouble
+        :param tmax: upper limit of integration
+        :type tmax: numpy.longdouble
+        :param dt0: initial step of integration
+        :type dt0: numpy.longdouble
+        :param butcher_tableau: Butcher tableau
+        :type butcher_tableau: np.array
+        :param name: method name
+        :type name: string
+        :param is_adaptive_step: use adaptive time step
+        :type is_adaptive_step: bool
+        :param tolerance: desired tolerance (needs for adaptive step only)
+        :type tolerance: float
+        """
         super().__init__(*args, **kwargs, butcher_tableau=self.butcher_tableau, name=self.name)
 
 
@@ -243,6 +328,26 @@ class Ralston2ODESolver(GenericExplicitRKODESolver):
     name = 'Ralston method'
 
     def __init__(self, *args, **kwargs):
+        """
+        :param f: function for calculating right parts of 1st order ODE
+        :type f: Callable
+        :param u0: initial conditions
+        :type u0: np.array
+        :param t0: lower limit of integration
+        :type t0: numpy.longdouble
+        :param tmax: upper limit of integration
+        :type tmax: numpy.longdouble
+        :param dt0: initial step of integration
+        :type dt0: numpy.longdouble
+        :param butcher_tableau: Butcher tableau
+        :type butcher_tableau: np.array
+        :param name: method name
+        :type name: string
+        :param is_adaptive_step: use adaptive time step
+        :type is_adaptive_step: bool
+        :param tolerance: desired tolerance (needs for adaptive step only)
+        :type tolerance: float
+        """
         super().__init__(*args, **kwargs, butcher_tableau=self.butcher_tableau, name=self.name)
 
 
@@ -263,6 +368,26 @@ class RungeKutta3ODESolver(GenericExplicitRKODESolver):
     name = 'Third-order Runge–Kutta method'
 
     def __init__(self, *args, **kwargs):
+        """
+        :param f: function for calculating right parts of 1st order ODE
+        :type f: Callable
+        :param u0: initial conditions
+        :type u0: np.array
+        :param t0: lower limit of integration
+        :type t0: numpy.longdouble
+        :param tmax: upper limit of integration
+        :type tmax: numpy.longdouble
+        :param dt0: initial step of integration
+        :type dt0: numpy.longdouble
+        :param butcher_tableau: Butcher tableau
+        :type butcher_tableau: np.array
+        :param name: method name
+        :type name: string
+        :param is_adaptive_step: use adaptive time step
+        :type is_adaptive_step: bool
+        :param tolerance: desired tolerance (needs for adaptive step only)
+        :type tolerance: float
+        """
         super().__init__(*args, **kwargs, butcher_tableau=self.butcher_tableau, name=self.name)
 
 
@@ -283,6 +408,26 @@ class Heun3ODESolver(GenericExplicitRKODESolver):
     name = 'Heun third-order method'
 
     def __init__(self, *args, **kwargs):
+        """
+        :param f: function for calculating right parts of 1st order ODE
+        :type f: Callable
+        :param u0: initial conditions
+        :type u0: np.array
+        :param t0: lower limit of integration
+        :type t0: numpy.longdouble
+        :param tmax: upper limit of integration
+        :type tmax: numpy.longdouble
+        :param dt0: initial step of integration
+        :type dt0: numpy.longdouble
+        :param butcher_tableau: Butcher tableau
+        :type butcher_tableau: np.array
+        :param name: method name
+        :type name: string
+        :param is_adaptive_step: use adaptive time step
+        :type is_adaptive_step: bool
+        :param tolerance: desired tolerance (needs for adaptive step only)
+        :type tolerance: float
+        """
         super().__init__(*args, **kwargs, butcher_tableau=self.butcher_tableau, name=self.name)
 
 
@@ -303,6 +448,26 @@ class Ralston3ODESolver(GenericExplicitRKODESolver):
     name = 'Ralston third-order method'
 
     def __init__(self, *args, **kwargs):
+        """
+        :param f: function for calculating right parts of 1st order ODE
+        :type f: Callable
+        :param u0: initial conditions
+        :type u0: np.array
+        :param t0: lower limit of integration
+        :type t0: numpy.longdouble
+        :param tmax: upper limit of integration
+        :type tmax: numpy.longdouble
+        :param dt0: initial step of integration
+        :type dt0: numpy.longdouble
+        :param butcher_tableau: Butcher tableau
+        :type butcher_tableau: np.array
+        :param name: method name
+        :type name: string
+        :param is_adaptive_step: use adaptive time step
+        :type is_adaptive_step: bool
+        :param tolerance: desired tolerance (needs for adaptive step only)
+        :type tolerance: float
+        """
         super().__init__(*args, **kwargs, butcher_tableau=self.butcher_tableau, name=self.name)
 
 
@@ -323,6 +488,26 @@ class SSPRK3ODESolver(GenericExplicitRKODESolver):
     name = 'Third-order Strong Stability Preserving Runge-Kutta method'
 
     def __init__(self, *args, **kwargs):
+        """
+        :param f: function for calculating right parts of 1st order ODE
+        :type f: Callable
+        :param u0: initial conditions
+        :type u0: np.array
+        :param t0: lower limit of integration
+        :type t0: numpy.longdouble
+        :param tmax: upper limit of integration
+        :type tmax: numpy.longdouble
+        :param dt0: initial step of integration
+        :type dt0: numpy.longdouble
+        :param butcher_tableau: Butcher tableau
+        :type butcher_tableau: np.array
+        :param name: method name
+        :type name: string
+        :param is_adaptive_step: use adaptive time step
+        :type is_adaptive_step: bool
+        :param tolerance: desired tolerance (needs for adaptive step only)
+        :type tolerance: float
+        """
         super().__init__(*args, **kwargs, butcher_tableau=self.butcher_tableau, name=self.name)
 
 
@@ -344,6 +529,26 @@ class Ralston4ODESolver(GenericExplicitRKODESolver):
     name = 'Ralston fourth-order method'
 
     def __init__(self, *args, **kwargs):
+        """
+        :param f: function for calculating right parts of 1st order ODE
+        :type f: Callable
+        :param u0: initial conditions
+        :type u0: np.array
+        :param t0: lower limit of integration
+        :type t0: numpy.longdouble
+        :param tmax: upper limit of integration
+        :type tmax: numpy.longdouble
+        :param dt0: initial step of integration
+        :type dt0: numpy.longdouble
+        :param butcher_tableau: Butcher tableau
+        :type butcher_tableau: np.array
+        :param name: method name
+        :type name: string
+        :param is_adaptive_step: use adaptive time step
+        :type is_adaptive_step: bool
+        :param tolerance: desired tolerance (needs for adaptive step only)
+        :type tolerance: float
+        """
         super().__init__(*args, **kwargs, butcher_tableau=self.butcher_tableau, name=self.name)
 
 
@@ -365,6 +570,26 @@ class Rule384ODESolver(GenericExplicitRKODESolver):
     name = '3/8-rule fourth-order method'
 
     def __init__(self, *args, **kwargs):
+        """
+        :param f: function for calculating right parts of 1st order ODE
+        :type f: Callable
+        :param u0: initial conditions
+        :type u0: np.array
+        :param t0: lower limit of integration
+        :type t0: numpy.longdouble
+        :param tmax: upper limit of integration
+        :type tmax: numpy.longdouble
+        :param dt0: initial step of integration
+        :type dt0: numpy.longdouble
+        :param butcher_tableau: Butcher tableau
+        :type butcher_tableau: np.array
+        :param name: method name
+        :type name: string
+        :param is_adaptive_step: use adaptive time step
+        :type is_adaptive_step: bool
+        :param tolerance: desired tolerance (needs for adaptive step only)
+        :type tolerance: float
+        """
         super().__init__(*args, **kwargs, butcher_tableau=self.butcher_tableau, name=self.name)
 
 
@@ -406,6 +631,26 @@ class Fehlberg21ODESolver(GenericExplicitRKODESolver):
     name = 'Fehlberg RK1(2) method'
 
     def __init__(self, *args, **kwargs):
+        """
+        :param f: function for calculating right parts of 1st order ODE
+        :type f: Callable
+        :param u0: initial conditions
+        :type u0: np.array
+        :param t0: lower limit of integration
+        :type t0: numpy.longdouble
+        :param tmax: upper limit of integration
+        :type tmax: numpy.longdouble
+        :param dt0: initial step of integration
+        :type dt0: numpy.longdouble
+        :param butcher_tableau: Butcher tableau
+        :type butcher_tableau: np.array
+        :param name: method name
+        :type name: string
+        :param is_adaptive_step: use adaptive time step
+        :type is_adaptive_step: bool
+        :param tolerance: desired tolerance (needs for adaptive step only)
+        :type tolerance: float
+        """
         super().__init__(*args, **kwargs, butcher_tableau=self.butcher_tableau, name=self.name)
 
 
@@ -428,6 +673,26 @@ class BogackiShampine32ODESolver(GenericExplicitRKODESolver):
     name = 'Bogacki–Shampine method'
 
     def __init__(self, *args, **kwargs):
+        """
+        :param f: function for calculating right parts of 1st order ODE
+        :type f: Callable
+        :param u0: initial conditions
+        :type u0: np.array
+        :param t0: lower limit of integration
+        :type t0: numpy.longdouble
+        :param tmax: upper limit of integration
+        :type tmax: numpy.longdouble
+        :param dt0: initial step of integration
+        :type dt0: numpy.longdouble
+        :param butcher_tableau: Butcher tableau
+        :type butcher_tableau: np.array
+        :param name: method name
+        :type name: string
+        :param is_adaptive_step: use adaptive time step
+        :type is_adaptive_step: bool
+        :param tolerance: desired tolerance (needs for adaptive step only)
+        :type tolerance: float
+        """
         super().__init__(*args, **kwargs, butcher_tableau=self.butcher_tableau, name=self.name)
 
 
@@ -452,6 +717,26 @@ class CashKarp54ODESolver(GenericExplicitRKODESolver):
     name = 'Cash-Karp method'
 
     def __init__(self, *args, **kwargs):
+        """
+        :param f: function for calculating right parts of 1st order ODE
+        :type f: Callable
+        :param u0: initial conditions
+        :type u0: np.array
+        :param t0: lower limit of integration
+        :type t0: numpy.longdouble
+        :param tmax: upper limit of integration
+        :type tmax: numpy.longdouble
+        :param dt0: initial step of integration
+        :type dt0: numpy.longdouble
+        :param butcher_tableau: Butcher tableau
+        :type butcher_tableau: np.array
+        :param name: method name
+        :type name: string
+        :param is_adaptive_step: use adaptive time step
+        :type is_adaptive_step: bool
+        :param tolerance: desired tolerance (needs for adaptive step only)
+        :type tolerance: float
+        """
         super().__init__(*args, **kwargs, butcher_tableau=self.butcher_tableau, name=self.name)
 
 
@@ -477,6 +762,26 @@ class DormandPrince54ODESolver(GenericExplicitRKODESolver):
     name = 'Dormand–Prince method'
 
     def __init__(self, *args, **kwargs):
+        """
+        :param f: function for calculating right parts of 1st order ODE
+        :type f: Callable
+        :param u0: initial conditions
+        :type u0: np.array
+        :param t0: lower limit of integration
+        :type t0: numpy.longdouble
+        :param tmax: upper limit of integration
+        :type tmax: numpy.longdouble
+        :param dt0: initial step of integration
+        :type dt0: numpy.longdouble
+        :param butcher_tableau: Butcher tableau
+        :type butcher_tableau: np.array
+        :param name: method name
+        :type name: string
+        :param is_adaptive_step: use adaptive time step
+        :type is_adaptive_step: bool
+        :param tolerance: desired tolerance (needs for adaptive step only)
+        :type tolerance: float
+        """
         super().__init__(*args, **kwargs, butcher_tableau=self.butcher_tableau, name=self.name)
 
 
@@ -516,7 +821,7 @@ class EverhartIIODESolver:
         :type dt0: numpy.longdouble
         :param is_adaptive_step: use adaptive time step
         :type is_adaptive_step: bool
-        :param tolerance: desired tolerance
+        :param tolerance: desired tolerance (needs for adaptive step only)
         :type tolerance: float
         """
         self.name = f'{order} order Everhart II method using {quadpy_function.__name__} quadrature'
@@ -537,7 +842,6 @@ class EverhartIIODESolver:
         self.ode_system_size = u0.size
         self.alfa = np.zeros([len(self.h) - 1, len(u0)], dtype='longdouble')
 
-        self.n = None
         self.dt = dt0
         self.tmax = tmax
         self.t0 = t0
@@ -567,12 +871,11 @@ class EverhartIIODESolver:
 
         # starting alfa values estimation according chapter 3.3 from [Everhart1]
         for __ in range(4):  # 2do: we still need to experiment with it
-            __, __, self.alfa, __ = self._do_step(self.u, self.du_dt, self.f2, self.n, self.dt, self.h,
+            __, __, self.alfa, __ = self._do_step(self.u, self.du_dt, self.t, self.f2, self.dt, self.h,
                                                   self.alfa)
         i = 0
         while self.t[i] <= self.tmax + self.dt0:
-            self.n = i
-            u_next, du_dt_next, self.alfa, real_tolerance = self._do_step(self.u, self.du_dt, self.f2, self.n,
+            u_next, du_dt_next, self.alfa, real_tolerance = self._do_step(self.u, self.du_dt, self.t, self.f2,
                                                                                self.dt, self.h, self.alfa)
             self.t = np.append(self.t, self.t[-1] + self.dt)
 
@@ -602,7 +905,7 @@ class EverhartIIODESolver:
         else:
             return self.u, self.t
 
-    def _do_step(self, u, du_dt, f, n, dt, h, alfa) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.longdouble]:
+    def _do_step(self, u, du_dt, t, f, dt, h, alfa) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.longdouble]:
         """
         One-step integration solution
         :return: solution
@@ -631,13 +934,13 @@ class EverhartIIODESolver:
         a = np.zeros([a_size, u_size], dtype='longdouble')
 
         # initiation
-        u_tau[0] = u[n]
-        du_dt_tau[0] = du_dt[n]
-        f_tau[0] = f(u_tau[0], du_dt_tau[0], self.t[-1] + tau[0])  # !!!
+        u_tau[0] = u[-1]
+        du_dt_tau[0] = du_dt[-1]
+        f_tau[0] = f(u_tau[0], du_dt_tau[0], t[-1] + tau[0])
 
         for i in range(1, tau_size):
             u_tau[i], du_dt_tau[i] = self._extrapolate(tau[i], u_tau[0], du_dt_tau[0], f_tau[0], a)
-            f_tau[i] = f(u_tau[i], du_dt_tau[i], self.t[-1] + tau[i])  # !!!
+            f_tau[i] = f(u_tau[i], du_dt_tau[i], t[-1] + tau[i])
 
             # correct alfa coefficients according to (7) from [Everhart1]
             for j in range(i):
@@ -769,7 +1072,7 @@ class EverhartIIRadau27ODESolver(EverhartIIODESolver):
         :type dt0: numpy.longdouble
         :param is_adaptive_step: use adaptive time step
         :type is_adaptive_step: bool
-        :param tolerance: desired tolerance
+        :param tolerance: desired tolerance (needs for adaptive step only)
         :type tolerance: float
         """
         self.order = 27
@@ -807,7 +1110,7 @@ class EverhartIIRadau21ODESolver(EverhartIIODESolver):
                 :type dt0: numpy.longdouble
                 :param is_adaptive_step: use adaptive time step
                 :type is_adaptive_step: bool
-                :param tolerance: desired tolerance
+                :param tolerance: desired tolerance (needs for adaptive step only)
                 :type tolerance: float
                 """
         self.order = 21
@@ -845,7 +1148,7 @@ class EverhartIIRadau15ODESolver(EverhartIIODESolver):
         :type dt0: numpy.longdouble
         :param is_adaptive_step: use adaptive time step
         :type is_adaptive_step: bool
-        :param tolerance: desired tolerance
+        :param tolerance: desired tolerance (needs for adaptive step only)
         :type tolerance: float
         """
         self.order = 15
@@ -883,7 +1186,7 @@ class EverhartIIRadau7ODESolver(EverhartIIODESolver):
         :type dt0: numpy.longdouble
         :param is_adaptive_step: use adaptive time step
         :type is_adaptive_step: bool
-        :param tolerance: desired tolerance
+        :param tolerance: desired tolerance (needs for adaptive step only)
         :type tolerance: float
         """
         self.order = 7
@@ -921,7 +1224,7 @@ class EverhartIILobatto27ODESolver(EverhartIIODESolver):
         :type dt0: numpy.longdouble
         :param is_adaptive_step: use adaptive time step
         :type is_adaptive_step: bool
-        :param tolerance: desired tolerance
+        :param tolerance: desired tolerance (needs for adaptive step only)
         :type tolerance: float
         """
         self.order = 27
@@ -959,7 +1262,7 @@ class EverhartIILobatto21ODESolver(EverhartIIODESolver):
         :type dt0: numpy.longdouble
         :param is_adaptive_step: use adaptive time step
         :type is_adaptive_step: bool
-        :param tolerance: desired tolerance
+        :param tolerance: desired tolerance (needs for adaptive step only)
         :type tolerance: float
         """
         self.order = 21
@@ -997,7 +1300,7 @@ class EverhartIILobatto15ODESolver(EverhartIIODESolver):
         :type dt0: numpy.longdouble
         :param is_adaptive_step: use adaptive time step
         :type is_adaptive_step: bool
-        :param tolerance: desired tolerance
+        :param tolerance: desired tolerance (needs for adaptive step only)
         :type tolerance: float
         """
         self.order = 15
@@ -1035,7 +1338,7 @@ class EverhartIILobatto7ODESolver(EverhartIIODESolver):
         :type dt0: numpy.longdouble
         :param is_adaptive_step: use adaptive time step
         :type is_adaptive_step: bool
-        :param tolerance: desired tolerance
+        :param tolerance: desired tolerance (needs for adaptive step only)
         :type tolerance: float
         """
         self.order = 7
