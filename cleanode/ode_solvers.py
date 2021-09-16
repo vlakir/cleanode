@@ -73,8 +73,8 @@ class GenericExplicitRKODESolver:
         self.n = None
         self.dt = dt0
         self.tmax = tmax
-        self.t0 = tmax
-        self.dt0 = t0
+        self.t0 = t0
+        self.dt0 = dt0
 
         self.t = np.array([t0], dtype='longdouble')
 
@@ -105,16 +105,33 @@ class GenericExplicitRKODESolver:
             # noinspection PyTypeChecker
             u_next = self._do_step(self.u, self.f, self.n, self.t, self.dt, self.a, self.b, self.c)
 
+            # noinspection PyTypeChecker
+            u_next1 = self._do_step(self.u, self.f, self.n, self.t, self.dt, self.a, self.b1, self.c)
+
+            real_tolerance = (abs(u_next - u_next1).sum())
+
             self.t = np.append(self.t, self.t[-1] + self.dt)
-            self._change_dt()
+            self._change_dt(real_tolerance, self.tolerance)
             self.u = np.vstack([self.u, u_next])
             i += 1
 
         if self.is_adaptive_step:
-            # 2do: for the adaptive step: to implement the final interpolation on a uniform grid with dt0 step
-            pass
+            points_number = int((self.tmax - self.t0) / self.dt0)
 
-        return self.u, self.t
+            t_result = np.linspace(self.t0, self.t0 + self.dt0 * points_number, points_number + 1)
+            u_result = np.zeros((self.ode_system_size, len(t_result)), dtype='longdouble')
+
+            for i in range(len(self.u[0])):
+                solution = self.u[:, i]
+                fu = interpolate.interp1d(self.t, solution, kind='cubic', fill_value="extrapolate")
+                solution_result = fu(t_result)
+                u_result[i] = solution_result
+
+            u_result = numpy.rot90(u_result, k=3)
+
+            return u_result, t_result
+        else:
+            return self.u, self.t
 
     def _do_step(self, u, f, n, t, dt, a, b, c) -> np.ndarray:
         """
@@ -137,17 +154,21 @@ class GenericExplicitRKODESolver:
 
         return unew
 
-    def _change_dt(self) -> None:
+    def _change_dt(self, real_tolerance: float, desired_tolerance: float) -> None:
         """
-        Adaptive algorithm for changing the step by an additional row self.b1 of the Butcher tableau
+        Adaptive algorithm for step changing
+        :param real_tolerance: real tolerance on current step
+        :type real_tolerance: float
+        :param desired_tolerance: desired tolerance for the next step
+        :type desired_tolerance: float
         """
         if self.is_adaptive_step:
-            if self.b1 is None:
-                raise ValueError('is_adaptive_step==True is not supported for a non-extended Butcher tableau')
+            order = len(self.a)
 
-            # 2do: to implement
-            raise ValueError('is_adaptive_step==True is not supported yet')
-            # self.dt = ...
+            # non-standart desired_tolerance coeff 1e8 (instead of 1 in classic algorithm) used for
+            # approximate comparability with Everhart's stepsize calculate algorithm
+            # 2do: find out why the error estimates are so different
+            self.dt = 0.9 * self.dt * ((desired_tolerance * 1e8) / real_tolerance) ** (1 / order)
 
 
 class EulerODESolver(GenericExplicitRKODESolver):
@@ -238,7 +259,8 @@ class RungeKutta4ODESolver(GenericExplicitRKODESolver):
         [1 / 2, 0, 1 / 2, 0, 0],
         [1, 0, 0, 1, 0],
 
-        [None, 1 / 6, 1 / 3, 1 / 3, 1 / 6]
+        [None, 1 / 6, 1 / 3, 1 / 3, 1 / 6],
+        [None, 1 / 6, 1 / 3, - 2 / 3, 1 / 6]
 
     ], dtype='longdouble')
 
@@ -874,7 +896,7 @@ class EverhartIIODESolver:
             __, __, self.alfa, __ = self._do_step(self.u, self.du_dt, self.t, self.f2, self.dt, self.h,
                                                   self.alfa)
         i = 0
-        while self.t[i] <= self.tmax + self.dt0:
+        while (self.t[i] + self.dt) <= self.tmax:
             u_next, du_dt_next, self.alfa, real_tolerance = self._do_step(self.u, self.du_dt, self.t, self.f2,
                                                                                self.dt, self.h, self.alfa)
             self.t = np.append(self.t, self.t[-1] + self.dt)
@@ -891,17 +913,17 @@ class EverhartIIODESolver:
             points_number = int((self.tmax - self.t0) / self.dt0)
 
             t_result = np.linspace(self.t0, self.t0 + self.dt0 * points_number, points_number + 1)
-            u_result = np.zeros((0, self.ode_system_size), dtype='longdouble')
+            u_result = np.zeros((self.ode_system_size, len(t_result)), dtype='longdouble')
 
             for i in range(len(self.u[0])):
                 solution = self.u[:, i]
-                fu = interpolate.interp1d(self.t, solution, kind='cubic')
+                fu = interpolate.interp1d(self.t, solution, kind='cubic', fill_value="extrapolate")
                 solution_result = fu(t_result)
+                u_result[i] = solution_result
 
-                for val in solution_result:
-                    u_result = np.vstack([u_result, val])
+            u_result = numpy.rot90(u_result, k=3)
 
-                return u_result, t_result
+            return u_result, t_result
         else:
             return self.u, self.t
 
@@ -1019,27 +1041,6 @@ class EverhartIIODESolver:
             result += f[j] / product
 
         return result
-
-    @staticmethod
-    def _line_extrapolation(x: numpy.longdouble,
-                            x1: numpy.longdouble, x2: numpy.longdouble,
-                            y1: numpy.longdouble, y2: numpy.longdouble) -> numpy.longdouble:
-        """
-        Linear extrapolation
-        :param x: current parameter
-        :type x: numpy.longdouble
-        :param x1: first previous parameter
-        :type x1: numpy.longdouble
-        :param x2: second previous parameter
-        :type x2: numpy.longdouble
-        :param y1: function of first previous parameter
-        :type y1: numpy.longdouble
-        :param y2: function of second previous parameter
-        :type y2: numpy.longdouble
-        :return: extrapolated function of current parameter
-        :rtype: numpy.longdouble
-        """
-        return y1 + (y2 - y1) / (x2 - x1) * (x - x1)
 
 
 class EverhartIIRadau27ODESolver(EverhartIIODESolver):

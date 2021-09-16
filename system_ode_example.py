@@ -42,6 +42,7 @@ if __name__ == '__main__':
 
         return right_sides
 
+    # noinspection PyUnusedLocal
     def exact_f(t):
         x = x0 + vx0 * time_exact
         y = y0 + vy0 * time_exact - const.g * time_exact ** 2 / 2
@@ -94,15 +95,15 @@ if __name__ == '__main__':
     vy0 = v0 * np.sin(angle_radians)
 
     u0 = np.array([x0, vx0, y0, vy0], dtype='longdouble')
-    solver = RungeKutta4ODESolver(f, u0, t0, tmax, dt0, is_adaptive_step=False)
+    solver = RungeKutta4ODESolver(f, u0, t0, tmax, dt0, is_adaptive_step=False, tolerance=1e-8)
     solution, time_points = solver.solve(print_benchmark=True, benchmark_name=solver.name)
     x_solution = solution[:, 0]
     y_solution = solution[:, 2]
     plt.plot(x_solution, time_points, label=solver.name)
 
     u0 = np.array([x0, y0], dtype='longdouble')
-    du_dt0 = [vx0, vy0]
-    solver = EverhartIIRadau7ODESolver(f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=False)
+    du_dt0 = np.array([vx0, vy0], dtype='longdouble')
+    solver = EverhartIIRadau7ODESolver(f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=False, tolerance=1e-8)
     solution, time_points = solver.solve(print_benchmark=True, benchmark_name=solver.name)
     x_solution1 = solution[:, 0]
     y_solution1 = solution[:, 1]

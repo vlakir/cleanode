@@ -2,7 +2,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from typing import Union, List
 from cleanode.ode_solvers import *
-import scipy.constants as const
 
 # Example of the scalar ODE solving: capital growth
 if __name__ == '__main__':
@@ -64,12 +63,6 @@ if __name__ == '__main__':
     points_number = int((tmax - t0) / dt0)
     time_exact = np.linspace(t0, t0 + dt0 * points_number, (points_number + 1) * 10)
 
-    # u0 = np.array([1.0], dtype='longdouble')
-    # solver = RungeKutta4ODESolver(f, u0, t0, tmax, dt0, is_adaptive_step=False)
-    # u1, t1 = solver.solve(print_benchmark=True, benchmark_name=solver.name)
-    # plt.plot(t1, u1, label=solver.name)
-    # x_exact = np.exp(time_exact)
-
     x0 = 1
     v0 = 1
 
@@ -80,7 +73,7 @@ if __name__ == '__main__':
     plt.plot(t3, u3, label=solver.name)
 
     u0 = np.array([x0, v0], dtype='longdouble')
-    solver = RungeKutta4ODESolver(f1, u0, t0, tmax, dt0, is_adaptive_step=False)
+    solver = RungeKutta4ODESolver(f1, u0, t0, tmax, dt0, is_adaptive_step=True, tolerance=1e-8)
     u1, t1 = solver.solve(print_benchmark=True, benchmark_name=solver.name)
     solution_x = u1[:, 0]
     plt.plot(t1, solution_x, label=solver.name)
