@@ -495,7 +495,8 @@ class EverhartIIODESolver:
                  t0: numpy.longdouble,
                  tmax: numpy.longdouble,
                  dt0: numpy.longdouble,
-                 is_adaptive_step=False):
+                 is_adaptive_step=False,
+                 tolerance=1e-8):
         """
         :param order: order of method
         :type order: int
@@ -515,6 +516,8 @@ class EverhartIIODESolver:
         :type dt0: numpy.longdouble
         :param is_adaptive_step: use adaptive time step
         :type is_adaptive_step: bool
+        :param tolerance: desired tolerance
+        :type tolerance: float
         """
         self.name = f'{order} order Everhart II method using {quadpy_function.__name__} quadrature'
 
@@ -525,6 +528,7 @@ class EverhartIIODESolver:
         self.f2 = f2
 
         self.is_adaptive_step = is_adaptive_step
+        self.tolerance = tolerance
 
         self.u = None
         self.du_dt = None
@@ -562,56 +566,28 @@ class EverhartIIODESolver:
         self.du_dt[0] = self.du_dt0
 
         # starting alfa values estimation according chapter 3.3 from [Everhart1]
-        for __ in range(4): # поэкспериментировать!!!
+        for __ in range(4):  # 2do: we still need to experiment with it
             __, __, self.alfa, __ = self._do_step(self.u, self.du_dt, self.f2, self.n, self.dt, self.h,
                                                   self.alfa)
         i = 0
-        dt_previous = self.dt
-        alfa_previous = self.alfa
-        dt_prev_previous = None
-        alfa_prev_previous = None
         while self.t[i] <= self.tmax + self.dt0:
             self.n = i
-            u_next, du_dt_next, self.alfa, tolerance_parameter = self._do_step(self.u, self.du_dt, self.f2, self.n,
+            u_next, du_dt_next, self.alfa, real_tolerance = self._do_step(self.u, self.du_dt, self.f2, self.n,
                                                                                self.dt, self.h, self.alfa)
             self.t = np.append(self.t, self.t[-1] + self.dt)
 
+            # 2do: correct alfa coefficients in case of changing dt according to p.38 of [Everhart1]
 
-
-            # correct alfa coefficients in case of changing dt according to p.38 of [Everhart1]
-            dt_prev_previous = dt_previous
-            alfa_prev_previous = alfa_previous
-            alfa_previous = self.alfa
-
-            dt_previous = self.dt
-
-            self._change_dt(tolerance_parameter)
-
-            # self.alfa = np.zeros([len(self.h) - 1, len(self.u0)], dtype='longdouble')
-            # for __ in range(4):  # поэкспериментировать!!!
-            #     __, __, self.alfa, __ = self._do_step(self.u, self.du_dt, self.f2, self.n, self.dt, self.h,
-            #                                           self.alfa)
-
-
-            if (dt_prev_previous is not None) and (dt_prev_previous != dt_previous):
-                for j in range(len(self.alfa)):
-
-                    #print(alfa_prev_previous[j], alfa_previous[j])
-
-                    # self.alfa[j] = self._line_extrapolation(self.dt,
-                    #                                         dt_prev_previous, dt_previous,
-                    #                                         alfa_prev_previous[j], alfa_previous[j])
-
-                    self.alfa[j] = self.alfa[j] * dt_previous / self.dt
+            self._change_dt(real_tolerance, self.tolerance)
 
             self.u = np.vstack([self.u, u_next])
             self.du_dt = np.vstack([self.du_dt, du_dt_next])
             i += 1
 
         if self.is_adaptive_step:
-        #if False:
-            points_number = round((self.tmax - self.t0) / self.dt)
-            t_result = np.linspace(self.t0, self.tmax, points_number)
+            points_number = int((self.tmax - self.t0) / self.dt0)
+
+            t_result = np.linspace(self.t0, self.t0 + self.dt0 * points_number, points_number + 1)
             u_result = np.zeros((0, self.ode_system_size), dtype='longdouble')
 
             for i in range(len(self.u[0])):
@@ -622,11 +598,7 @@ class EverhartIIODESolver:
                 for val in solution_result:
                     u_result = np.vstack([u_result, val])
 
-                print(len(self.u))
-
                 return u_result, t_result
-
-
         else:
             return self.u, self.t
 
@@ -681,29 +653,24 @@ class EverhartIIODESolver:
         u_new, du_dt_new = self._extrapolate(dt, u_tau[0], du_dt_tau[0], f_tau[0], a)
 
         # needs for dt correction on every step according to chapter 3.4 from [Everhart1]
-        # tolerance_parameter = (abs(a[-1] * dt ** (a_size + 2) / ((a_size + 2) * (a_size + 1)))).sum()
-
-        # tolerance_parameter = (((a_size + 2) * (a_size + 1)) / (dt * abs(a[-1]).sum())) ** (1 / (a_size + 2))
-
         tolerance_parameter = (abs(a[-1] / ((a_size + 2) * (a_size + 1)))).sum()
 
         return u_new, du_dt_new, alfa, tolerance_parameter
 
-    def _change_dt(self, tolerance_parameter) -> None:
+    def _change_dt(self, real_tolerance: float, desired_tolerance: float) -> None:
         """
-        Adaptive algorithm for changing the step by an additional row self.b1 of the Butcher tableau
+        Adaptive algorithm for step changing
+        :param real_tolerance: real tolerance on current step
+        :type real_tolerance: float
+        :param desired_tolerance: desired tolerance for the next step
+        :type desired_tolerance: float
         """
         if self.is_adaptive_step:
-            desired_tolerance = 1e-8
-
             a_size = len(self.h) - 1
-            #print(a_size + 2)
-            self.dt = ((desired_tolerance / tolerance_parameter) ** (1 / (a_size + 2)))
-            #print(self.dt)
+            self.dt = ((desired_tolerance / real_tolerance) ** (1 / (a_size + 2)))
 
-
-
-    def _extrapolate(self, time: numpy.longdouble, u0: numpy.longdouble, du_dt0: numpy.longdouble, f0: numpy.longdouble,
+    @staticmethod
+    def _extrapolate(time: numpy.longdouble, u0: numpy.longdouble, du_dt0: numpy.longdouble, f0: numpy.longdouble,
                      a: numpy.array) -> Tuple[numpy.longdouble, numpy.longdouble]:
         """
         Extrapolation of the function and its first derivative by polynomials (4) and (5) from [Everhart1]
@@ -772,114 +739,43 @@ class EverhartIIODESolver:
         return y1 + (y2 - y1) / (x2 - x1) * (x - x1)
 
 
-class EverhartIODESolver(EverhartIIODESolver):
-    """
-        Implements original Everhart method [Everhart1] for I-type ODE using defined quadrature
-        [Everhart1] Everhart Е. Implicit single-sequence methods for integrating orbits.
-                    //Celestial Mechanics. 1974. 10. P.35-55.
-    """
-    def __init__(self, order,
-                 quadpy_function: Callable,
-                 f: Callable,
-                 u0: np.ndarray,
-                 t0: numpy.longdouble,
-                 tmax: numpy.longdouble,
-                 dt0: numpy.longdouble,
-                 is_adaptive_step=False):
-
-        du_dt0 = np.zeros(u0.size)
-
-        super().__init__(order, quadpy_function, f, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step)
-
-    def _do_step(self, u, du_dt, f, n, dt, h, c, alfa) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """
-        One-step integration solution
-        :return: solution
-        :rtype: Tuple[np.ndarray, np.ndarray, np.ndarray]
-        """
-        tau = h * dt
-
-        a_size = len(h) - 1
-        tau_size = len(h)
-        u_size = len(u[0])
-
-        f_tau = np.zeros([tau_size, u_size], dtype='longdouble')
-        u_tau = np.zeros([tau_size, u_size], dtype='longdouble')
-        du_dt_tau = np.zeros([tau_size, u_size], dtype='longdouble')
-        a = np.zeros([a_size, u_size], dtype='longdouble')
-
-        # initiation
-        u_tau[0] = u[n]
-        f_tau[0] = f(u_tau[0], tau[0])
-        u_tau[1] = self._extrapolate(tau[1], u_tau[0], du_dt_tau[0], f_tau[0], a)
-        f_tau[1] = f(u_tau[1], tau[1])
-
-        for i in range(tau_size):
-            # correct alfa coefficients according to (7) from [Everhart1]
-            for j in range(a_size):
-                alfa[j] = self._divided_difference(j + 1, f_tau, tau)
-
-            # correct a coefficients according to (8) from [Everhart1]
-            for j in range(a_size):
-                a[j] = alfa[j]
-                for k in range(a_size):
-                    a[j] += c[k, j] * alfa[k]
-
-            for j in range(tau_size):
-                u_tau[j] = self._extrapolate(tau[j], u_tau[0], du_dt_tau[0], f_tau[0], a)
-                f_tau[j] = f(u_tau[j], tau[j])
-
-        # correct final values of the function and derivative according to (14), (15) from [Everhart1]
-        u_new = self._extrapolate(dt, u_tau[0], du_dt_tau[0], f_tau[0], a)
-        du_dt_new = np.zeros(u_new.size)
-
-        return u_new, du_dt_new, alfa
-
-    def _extrapolate(self, time: numpy.longdouble, u0: numpy.longdouble, du_dt0: numpy.longdouble, f0: numpy.longdouble,
-                     a: numpy.array) -> numpy.longdouble:
-        """
-        Extrapolation of the function and its first derivative by polynomials (4) and (5) from [Everhart1]
-        :param time: time
-        :type time: numpy.longdouble
-        :param u0: initial value of the function
-        :type u0: numpy.longdouble
-        :param f0: initial value of the right part of the ODE
-        :type f0: numpy.longdouble
-        :param a: coefficients of the extrapolation polynomial
-        :type a: numpy.array
-        :return: extrapolated values
-        :rtype: numpy.longdouble
-        """
-        # u_result = u0 + du_dt0 * time + f0 * time ** 2 / 2
-        # du_result = du_dt0 + f0 * time
-        # for i in range(len(a)):
-        #     u_result += a[i] * time ** (i + 3) / ((i + 3) * (i + 2))
-        #     du_result += a[i] * time ** (i + 2) / (i + 2)
-
-        u_result = u0 + f0 * time
-        for i in range(len(a)):
-            u_result += a[i] * time ** (i + 2) / (i + 2)  # ????????????????????????? /2
-        return u_result
-
-
 class EverhartIIRadau27ODESolver(EverhartIIODESolver):
     """
     Implements original Everhart II 27-order method [Everhart1] using Radau quadrature
     [Everhart1] Everhart Е. Implicit single-sequence methods for integrating orbits.
                 //Celestial Mechanics. 1974. 10. P.35-55.
     """
-
     def __init__(self, f2: Callable,
                  u0: np.ndarray,
                  du_dt0: np.ndarray,
                  t0: numpy.longdouble,
                  tmax: numpy.longdouble,
                  dt0: numpy.longdouble,
-                 is_adaptive_step=False):
-
+                 is_adaptive_step=False,
+                 tolerance=1e-8
+                 ):
+        """
+        :param f2: function for calculating of right parts of 2nd order ODE
+        :type f2: Callable
+        :param u0: initial conditions of required function
+        :type u0: np.ndarray
+        :param du_dt0: initial conditions of required function's derivative
+        :type du_dt0: np.ndarray
+        :param t0: lower limit of integration
+        :type t0: numpy.longdouble
+        :param tmax: upper limit of integration
+        :type tmax: numpy.longdouble
+        :param dt0: initial step of integration
+        :type dt0: numpy.longdouble
+        :param is_adaptive_step: use adaptive time step
+        :type is_adaptive_step: bool
+        :param tolerance: desired tolerance
+        :type tolerance: float
+        """
         self.order = 27
         quad = quadpy.c1.gauss_radau
-        super().__init__(self.order, quad, f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step)
+        super().__init__(self.order, quad, f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step,
+                         tolerance=tolerance)
 
 
 class EverhartIIRadau21ODESolver(EverhartIIODESolver):
@@ -888,18 +784,36 @@ class EverhartIIRadau21ODESolver(EverhartIIODESolver):
     [Everhart1] Everhart Е. Implicit single-sequence methods for integrating orbits.
                 //Celestial Mechanics. 1974. 10. P.35-55.
     """
-
     def __init__(self, f2: Callable,
                  u0: np.ndarray,
                  du_dt0: np.ndarray,
                  t0: numpy.longdouble,
                  tmax: numpy.longdouble,
                  dt0: numpy.longdouble,
-                 is_adaptive_step=False):
-
+                 is_adaptive_step=False,
+                 tolerance=1e-8):
+        """
+                :param f2: function for calculating of right parts of 2nd order ODE
+                :type f2: Callable
+                :param u0: initial conditions of required function
+                :type u0: np.ndarray
+                :param du_dt0: initial conditions of required function's derivative
+                :type du_dt0: np.ndarray
+                :param t0: lower limit of integration
+                :type t0: numpy.longdouble
+                :param tmax: upper limit of integration
+                :type tmax: numpy.longdouble
+                :param dt0: initial step of integration
+                :type dt0: numpy.longdouble
+                :param is_adaptive_step: use adaptive time step
+                :type is_adaptive_step: bool
+                :param tolerance: desired tolerance
+                :type tolerance: float
+                """
         self.order = 21
         quad = quadpy.c1.gauss_radau
-        super().__init__(self.order, quad, f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step)
+        super().__init__(self.order, quad, f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step,
+                         tolerance=tolerance)
 
 
 class EverhartIIRadau15ODESolver(EverhartIIODESolver):
@@ -908,18 +822,36 @@ class EverhartIIRadau15ODESolver(EverhartIIODESolver):
     [Everhart1] Everhart Е. Implicit single-sequence methods for integrating orbits.
                 //Celestial Mechanics. 1974. 10. P.35-55.
     """
-
     def __init__(self, f2: Callable,
                  u0: np.ndarray,
                  du_dt0: np.ndarray,
                  t0: numpy.longdouble,
                  tmax: numpy.longdouble,
                  dt0: numpy.longdouble,
-                 is_adaptive_step=False):
-
+                 is_adaptive_step=False,
+                 tolerance=1e-8):
+        """
+        :param f2: function for calculating of right parts of 2nd order ODE
+        :type f2: Callable
+        :param u0: initial conditions of required function
+        :type u0: np.ndarray
+        :param du_dt0: initial conditions of required function's derivative
+        :type du_dt0: np.ndarray
+        :param t0: lower limit of integration
+        :type t0: numpy.longdouble
+        :param tmax: upper limit of integration
+        :type tmax: numpy.longdouble
+        :param dt0: initial step of integration
+        :type dt0: numpy.longdouble
+        :param is_adaptive_step: use adaptive time step
+        :type is_adaptive_step: bool
+        :param tolerance: desired tolerance
+        :type tolerance: float
+        """
         self.order = 15
         quad = quadpy.c1.gauss_radau
-        super().__init__(self.order, quad, f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step)
+        super().__init__(self.order, quad, f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step,
+                         tolerance=tolerance)
 
 
 class EverhartIIRadau7ODESolver(EverhartIIODESolver):
@@ -928,18 +860,36 @@ class EverhartIIRadau7ODESolver(EverhartIIODESolver):
     [Everhart1] Everhart Е. Implicit single-sequence methods for integrating orbits.
                 //Celestial Mechanics. 1974. 10. P.35-55.
     """
-
     def __init__(self, f2: Callable,
                  u0: np.ndarray,
                  du_dt0: np.ndarray,
                  t0: numpy.longdouble,
                  tmax: numpy.longdouble,
                  dt0: numpy.longdouble,
-                 is_adaptive_step=False):
-
+                 is_adaptive_step=False,
+                 tolerance=1e-8):
+        """
+        :param f2: function for calculating of right parts of 2nd order ODE
+        :type f2: Callable
+        :param u0: initial conditions of required function
+        :type u0: np.ndarray
+        :param du_dt0: initial conditions of required function's derivative
+        :type du_dt0: np.ndarray
+        :param t0: lower limit of integration
+        :type t0: numpy.longdouble
+        :param tmax: upper limit of integration
+        :type tmax: numpy.longdouble
+        :param dt0: initial step of integration
+        :type dt0: numpy.longdouble
+        :param is_adaptive_step: use adaptive time step
+        :type is_adaptive_step: bool
+        :param tolerance: desired tolerance
+        :type tolerance: float
+        """
         self.order = 7
         quad = quadpy.c1.gauss_radau
-        super().__init__(self.order, quad, f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step)
+        super().__init__(self.order, quad, f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step,
+                         tolerance=tolerance)
 
 
 class EverhartIILobatto27ODESolver(EverhartIIODESolver):
@@ -948,17 +898,36 @@ class EverhartIILobatto27ODESolver(EverhartIIODESolver):
     [Everhart1] Everhart Е. Implicit single-sequence methods for integrating orbits.
                 //Celestial Mechanics. 1974. 10. P.35-55.
     """
-
     def __init__(self, f2: Callable,
                  u0: np.ndarray,
                  du_dt0: np.ndarray,
                  t0: numpy.longdouble,
                  tmax: numpy.longdouble,
                  dt0: numpy.longdouble,
-                 is_adaptive_step=False):
+                 is_adaptive_step=False,
+                 tolerance=1e-8):
+        """
+        :param f2: function for calculating of right parts of 2nd order ODE
+        :type f2: Callable
+        :param u0: initial conditions of required function
+        :type u0: np.ndarray
+        :param du_dt0: initial conditions of required function's derivative
+        :type du_dt0: np.ndarray
+        :param t0: lower limit of integration
+        :type t0: numpy.longdouble
+        :param tmax: upper limit of integration
+        :type tmax: numpy.longdouble
+        :param dt0: initial step of integration
+        :type dt0: numpy.longdouble
+        :param is_adaptive_step: use adaptive time step
+        :type is_adaptive_step: bool
+        :param tolerance: desired tolerance
+        :type tolerance: float
+        """
         self.order = 27
         quad = quadpy.c1.gauss_lobatto
-        super().__init__(self.order, quad, f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step)
+        super().__init__(self.order, quad, f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step,
+                         tolerance=tolerance)
 
 
 class EverhartIILobatto21ODESolver(EverhartIIODESolver):
@@ -967,17 +936,36 @@ class EverhartIILobatto21ODESolver(EverhartIIODESolver):
     [Everhart1] Everhart Е. Implicit single-sequence methods for integrating orbits.
                 //Celestial Mechanics. 1974. 10. P.35-55.
     """
-
     def __init__(self, f2: Callable,
                  u0: np.ndarray,
                  du_dt0: np.ndarray,
                  t0: numpy.longdouble,
                  tmax: numpy.longdouble,
                  dt0: numpy.longdouble,
-                 is_adaptive_step=False):
+                 is_adaptive_step=False,
+                 tolerance=1e-8):
+        """
+        :param f2: function for calculating of right parts of 2nd order ODE
+        :type f2: Callable
+        :param u0: initial conditions of required function
+        :type u0: np.ndarray
+        :param du_dt0: initial conditions of required function's derivative
+        :type du_dt0: np.ndarray
+        :param t0: lower limit of integration
+        :type t0: numpy.longdouble
+        :param tmax: upper limit of integration
+        :type tmax: numpy.longdouble
+        :param dt0: initial step of integration
+        :type dt0: numpy.longdouble
+        :param is_adaptive_step: use adaptive time step
+        :type is_adaptive_step: bool
+        :param tolerance: desired tolerance
+        :type tolerance: float
+        """
         self.order = 21
         quad = quadpy.c1.gauss_lobatto
-        super().__init__(self.order, quad, f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step)
+        super().__init__(self.order, quad, f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step,
+                         tolerance=tolerance)
 
 
 class EverhartIILobatto15ODESolver(EverhartIIODESolver):
@@ -986,17 +974,36 @@ class EverhartIILobatto15ODESolver(EverhartIIODESolver):
     [Everhart1] Everhart Е. Implicit single-sequence methods for integrating orbits.
                 //Celestial Mechanics. 1974. 10. P.35-55.
     """
-
     def __init__(self, f2: Callable,
                  u0: np.ndarray,
                  du_dt0: np.ndarray,
                  t0: numpy.longdouble,
                  tmax: numpy.longdouble,
                  dt0: numpy.longdouble,
-                 is_adaptive_step=False):
+                 is_adaptive_step=False,
+                 tolerance=1e-8):
+        """
+        :param f2: function for calculating of right parts of 2nd order ODE
+        :type f2: Callable
+        :param u0: initial conditions of required function
+        :type u0: np.ndarray
+        :param du_dt0: initial conditions of required function's derivative
+        :type du_dt0: np.ndarray
+        :param t0: lower limit of integration
+        :type t0: numpy.longdouble
+        :param tmax: upper limit of integration
+        :type tmax: numpy.longdouble
+        :param dt0: initial step of integration
+        :type dt0: numpy.longdouble
+        :param is_adaptive_step: use adaptive time step
+        :type is_adaptive_step: bool
+        :param tolerance: desired tolerance
+        :type tolerance: float
+        """
         self.order = 15
         quad = quadpy.c1.gauss_lobatto
-        super().__init__(self.order, quad, f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step)
+        super().__init__(self.order, quad, f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step,
+                         tolerance=tolerance)
 
 
 class EverhartIILobatto7ODESolver(EverhartIIODESolver):
@@ -1005,134 +1012,33 @@ class EverhartIILobatto7ODESolver(EverhartIIODESolver):
     [Everhart1] Everhart Е. Implicit single-sequence methods for integrating orbits.
                 //Celestial Mechanics. 1974. 10. P.35-55.
     """
-
     def __init__(self, f2: Callable,
                  u0: np.ndarray,
                  du_dt0: np.ndarray,
                  t0: numpy.longdouble,
                  tmax: numpy.longdouble,
                  dt0: numpy.longdouble,
-                 is_adaptive_step=False):
+                 is_adaptive_step=False,
+                 tolerance=1e-8):
+        """
+        :param f2: function for calculating of right parts of 2nd order ODE
+        :type f2: Callable
+        :param u0: initial conditions of required function
+        :type u0: np.ndarray
+        :param du_dt0: initial conditions of required function's derivative
+        :type du_dt0: np.ndarray
+        :param t0: lower limit of integration
+        :type t0: numpy.longdouble
+        :param tmax: upper limit of integration
+        :type tmax: numpy.longdouble
+        :param dt0: initial step of integration
+        :type dt0: numpy.longdouble
+        :param is_adaptive_step: use adaptive time step
+        :type is_adaptive_step: bool
+        :param tolerance: desired tolerance
+        :type tolerance: float
+        """
         self.order = 7
         quad = quadpy.c1.gauss_lobatto
-        super().__init__(self.order, quad, f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step)
-
-
-class EverhartIRadau21ODESolver(EverhartIODESolver):
-    """
-    Implements original Everhart I 21-order method [Everhart1] using Radau quadrature
-    [Everhart1] Everhart Е. Implicit single-sequence methods for integrating orbits.
-                //Celestial Mechanics. 1974. 10. P.35-55.
-    """
-
-    def __init__(self, f: Callable,
-                 u0: np.ndarray,
-                 t0: numpy.longdouble,
-                 tmax: numpy.longdouble,
-                 dt0: numpy.longdouble,
-                 is_adaptive_step=False):
-
-        self.order = 21
-        quad = quadpy.c1.gauss_radau
-        super().__init__(self.order, quad, f, u0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step)
-        self.name = f'{self.order} order Everhart I method using {quadpy.c1.gauss_radau.__name__} quadrature'
-
-
-class EverhartIRadau15ODESolver(EverhartIODESolver):
-    """
-    Implements original Everhart I 15-order method [Everhart1] using Radau quadrature
-    [Everhart1] Everhart Е. Implicit single-sequence methods for integrating orbits.
-                //Celestial Mechanics. 1974. 10. P.35-55.
-    """
-
-    def __init__(self, f: Callable,
-                 u0: np.ndarray,
-                 t0: numpy.longdouble,
-                 tmax: numpy.longdouble,
-                 dt0: numpy.longdouble,
-                 is_adaptive_step=False):
-
-        self.order = 15
-        quad = quadpy.c1.gauss_radau
-        super().__init__(self.order, quad, f, u0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step)
-        self.name = f'{self.order} order Everhart I method using {quadpy.c1.gauss_radau.__name__} quadrature'
-
-
-class EverhartIRadau7ODESolver(EverhartIODESolver):
-    """
-    Implements original Everhart I 7-order method [Everhart1] using Radau quadrature
-    [Everhart1] Everhart Е. Implicit single-sequence methods for integrating orbits.
-                //Celestial Mechanics. 1974. 10. P.35-55.
-    """
-
-    def __init__(self, f: Callable,
-                 u0: np.ndarray,
-                 t0: numpy.longdouble,
-                 tmax: numpy.longdouble,
-                 dt0: numpy.longdouble,
-                 is_adaptive_step=False):
-
-        self.order = 7
-        quad = quadpy.c1.gauss_radau
-        super().__init__(self.order, quad, f, u0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step)
-        self.name = f'{self.order} order Everhart I method using {quadpy.c1.gauss_radau.__name__} quadrature'
-
-
-class EverhartILobatto21ODESolver(EverhartIODESolver):
-    """
-    Implements original Everhart I 21-order method [Everhart1] using Lobatto quadrature
-    [Everhart1] Everhart Е. Implicit single-sequence methods for integrating orbits.
-                //Celestial Mechanics. 1974. 10. P.35-55.
-    """
-
-    def __init__(self, f: Callable,
-                 u0: np.ndarray,
-                 t0: numpy.longdouble,
-                 tmax: numpy.longdouble,
-                 dt0: numpy.longdouble,
-                 is_adaptive_step=False):
-
-        self.order = 21
-        quad = quadpy.c1.gauss_lobatto
-        super().__init__(self.order, quad, f, u0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step)
-        self.name = f'{self.order} order Everhart I method using {quadpy.c1.gauss_radau.__name__} quadrature'
-
-
-class EverhartILobatto15ODESolver(EverhartIODESolver):
-    """
-    Implements original Everhart I 15-order method [Everhart1] using Lobatto quadrature
-    [Everhart1] Everhart Е. Implicit single-sequence methods for integrating orbits.
-                //Celestial Mechanics. 1974. 10. P.35-55.
-    """
-
-    def __init__(self, f: Callable,
-                 u0: np.ndarray,
-                 t0: numpy.longdouble,
-                 tmax: numpy.longdouble,
-                 dt0: numpy.longdouble,
-                 is_adaptive_step=False):
-
-        self.order = 15
-        quad = quadpy.c1.gauss_lobatto
-        super().__init__(self.order, quad, f, u0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step)
-        self.name = f'{self.order} order Everhart I method using {quadpy.c1.gauss_radau.__name__} quadrature'
-
-
-class EverhartILobatto7ODESolver(EverhartIODESolver):
-    """
-    Implements original Everhart I 7-order method [Everhart1] using Radau quadrature
-    [Everhart1] Everhart Е. Implicit single-sequence methods for integrating orbits.
-                //Celestial Mechanics. 1974. 10. P.35-55.
-    """
-
-    def __init__(self, f: Callable,
-                 u0: np.ndarray,
-                 t0: numpy.longdouble,
-                 tmax: numpy.longdouble,
-                 dt0: numpy.longdouble,
-                 is_adaptive_step=False):
-
-        self.order = 7
-        quad = quadpy.c1.gauss_lobatto
-        super().__init__(self.order, quad, f, u0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step)
-        self.name = f'{self.order} order Everhart I method using {quadpy.c1.gauss_radau.__name__} quadrature'
+        super().__init__(self.order, quad, f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step,
+                         tolerance=tolerance)

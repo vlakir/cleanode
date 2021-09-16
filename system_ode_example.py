@@ -100,13 +100,6 @@ if __name__ == '__main__':
     y_solution = solution[:, 2]
     plt.plot(x_solution, time_points, label=solver.name)
 
-    # u0 = np.array([x0, vx0, y0, vy0], dtype='longdouble')
-    # solver = EverhartIRadau7ODESolver(f, u0, t0, tmax, dt0, is_adaptive_step=False)
-    # solution, time_points = solver.solve(print_benchmark=True, benchmark_name=solver.name)
-    # x_solution1 = solution[:, 0]
-    # y_solution1 = solution[:, 2]
-    # plt.plot(x_solution1, time_points, label=solver.name)
-    #
     u0 = np.array([x0, y0], dtype='longdouble')
     du_dt0 = [vx0, vy0]
     solver = EverhartIIRadau7ODESolver(f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=False)
