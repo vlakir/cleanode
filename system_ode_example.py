@@ -81,7 +81,7 @@ if __name__ == '__main__':
     # calculation parameters:
     t0 = np.longdouble(0)
     tmax = np.longdouble(2 * math.pi)
-    dt0 = np.longdouble(0.1)
+    dt0 = np.longdouble(0.01)
 
     # initial conditions:
     x0 = np.longdouble(0)

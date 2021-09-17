@@ -11,6 +11,8 @@ pip install cleanode
 ____
 
 ## List of embedded solvers:
+
+### Explicit:
 EulerODESolver
 
 MidpointODESolver
@@ -43,7 +45,21 @@ CashKarp54ODESolver
 
 DormandPrince54ODESolver
 
-to be continued... 
+### Implicit:
+
+EverhartIIRadau7ODESolver
+
+EverhartIIRadau15ODESolver
+
+EverhartIIRadau21ODESolver
+
+EverhartIILobatto7ODESolver
+
+EverhartIILobatto15ODESolver
+
+EverhartIILobatto21ODESolver
+
+*to be continued...* 
 
 ____
 ## Example using an embedded solver:

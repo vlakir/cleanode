@@ -43,10 +43,22 @@ class GenericExplicitRKODESolver:
         :param tolerance: desired tolerance (needs for adaptive step only)
         :type tolerance: float
         """
-
         self.f = f
         self.name = name
         self.butcher_tableau = butcher_tableau
+        self.dt = dt0
+        self.tmax = tmax
+        self.n = 0
+        self.u = None
+        self.t0 = t0
+        self.dt0 = dt0
+        self.ode_system_size = u0.size
+        self.u0 = u0
+        self.is_adaptive_step = is_adaptive_step
+        self.is_interpolate = is_interpolate
+        self.tolerance = tolerance
+
+        self.t = np.array([t0], dtype='longdouble')
 
         if self.butcher_tableau is None:
             raise ValueError('Butcher tableau is not defined')
@@ -67,24 +79,6 @@ class GenericExplicitRKODESolver:
         if (np.count_nonzero(np.triu(self.a))) > 0:
             raise ValueError('There are non-zero elements in the upper triangle of the matrix a in the Butcher tableau.'
                              ' It is not allowed for an explicit Runge-Kutta method.')
-
-        self.is_adaptive_step = is_adaptive_step
-        self.is_interpolate = is_interpolate
-        self.tolerance = tolerance
-
-        self.u = None
-        self.n = None
-        self.dt = dt0
-        self.tmax = tmax
-        self.t0 = t0
-        self.dt0 = dt0
-
-        self.t = np.array([t0], dtype='longdouble')
-
-        u0 = np.asarray(u0, dtype='longdouble')
-        self.ode_system_size = u0.size
-
-        self.u0 = u0
 
     # noinspection PyUnusedLocal
     @benchmark
@@ -107,10 +101,8 @@ class GenericExplicitRKODESolver:
 
             # noinspection PyTypeChecker
             u_next = self._do_step(self.u, self.f, self.n, self.t, self.dt, self.a, self.b, self.c)
-
             # noinspection PyTypeChecker
             u_next1 = self._do_step(self.u, self.f, self.n, self.t, self.dt, self.a, self.b1, self.c)
-
             real_tolerance = (abs(u_next - u_next1).sum())
 
             self.t = np.append(self.t, self.t[-1] + self.dt)
@@ -119,22 +111,9 @@ class GenericExplicitRKODESolver:
             i += 1
 
         if self.is_adaptive_step and self.is_interpolate:
-            points_number = int((self.tmax - self.t0) / self.dt0)
+            self.u, self.t = _interpolate_result(self.u, self.t, self.t0, self.tmax, self.dt0)
 
-            t_result = np.linspace(self.t0, self.t0 + self.dt0 * points_number, points_number + 1)
-            u_result = np.zeros((self.ode_system_size, len(t_result)), dtype='longdouble')
-
-            for i in range(len(self.u[0])):
-                solution = self.u[:, -1 - i]
-                fu = interpolate.interp1d(self.t, solution, kind='cubic', fill_value="extrapolate")
-                solution_result = fu(t_result)
-                u_result[i] = solution_result
-
-            u_result = numpy.rot90(u_result, k=3)
-
-            return u_result, t_result
-        else:
-            return self.u, self.t
+        return self.u, self.t
 
     def _do_step(self, u, f, n, t, dt, a, b, c) -> np.ndarray:
         """
@@ -170,7 +149,6 @@ class GenericExplicitRKODESolver:
 
             # stuppid empirical equation used for approximate comparability with Everhart's stepsize calculate algorithm
             # 2do: find out mathematical correct way
-            #      (e.g. see: here: https://en.wikipedia.org/wiki/Runge–Kutta–Fehlberg_method)
             self.dt = 0.9 * self.dt * ((desired_tolerance * 1e8) / real_tolerance) ** (1 / order)
 
 
@@ -944,28 +922,14 @@ class EverhartIIODESolver:
             # 2do: correct alfa coefficients in case of changing dt according to p.38 of [Everhart1]
 
             self._change_dt(real_tolerance, self.tolerance)
-
             self.u = np.vstack([self.u, u_next])
             self.du_dt = np.vstack([self.du_dt, du_dt_next])
             i += 1
 
         if self.is_adaptive_step and self.is_interpolate:
-            points_number = int((self.tmax - self.t0) / self.dt0)
+            self.u, self.t = _interpolate_result(self.u, self.t, self.t0, self.tmax, self.dt0)
 
-            t_result = np.linspace(self.t0, self.t0 + self.dt0 * points_number, points_number + 1)
-            u_result = np.zeros((self.ode_system_size, len(t_result)), dtype='longdouble')
-
-            for i in range(len(self.u[0])):
-                solution = self.u[:, -1 - i]
-                fu = interpolate.interp1d(self.t, solution, kind='cubic', fill_value="extrapolate")
-                solution_result = fu(t_result)
-                u_result[i] = solution_result
-
-            u_result = numpy.rot90(u_result, k=3)
-
-            return u_result, t_result
-        else:
-            return self.u, self.t
+        return self.u, self.t
 
     def _do_step(self, u, du_dt, t, f, dt, h, alfa) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.longdouble]:
         """
@@ -974,12 +938,15 @@ class EverhartIIODESolver:
         :rtype: Tuple[np.ndarray, np.ndarray, np.ndarray]
         """
         tau = h * dt
-
         a_size = len(h) - 1
         tau_size = len(h)
         u_size = len(u[0])
+        f_tau = np.zeros([tau_size, u_size], dtype='longdouble')
+        u_tau = np.zeros([tau_size, u_size], dtype='longdouble')
+        du_dt_tau = np.zeros([tau_size, u_size], dtype='longdouble')
+        a = np.zeros([a_size, u_size], dtype='longdouble')
 
-        # (9) from [Everhart1]
+        # calculate c coefficients according to (9) from [Everhart1]
         c = np.zeros([a_size, a_size], dtype='longdouble')
         for i in range(a_size):
             for j in range(a_size):
@@ -990,18 +957,16 @@ class EverhartIIODESolver:
                 elif 0 < j < i:
                     c[i, j] = c[i - 1, j - 1] - tau[i] * c[i - 1, j]
 
-        f_tau = np.zeros([tau_size, u_size], dtype='longdouble')
-        u_tau = np.zeros([tau_size, u_size], dtype='longdouble')
-        du_dt_tau = np.zeros([tau_size, u_size], dtype='longdouble')
-        a = np.zeros([a_size, u_size], dtype='longdouble')
-
-        # initiation
+        # initiate first values of the function and its derivative and the right side of ODE
         u_tau[0] = u[-1]
         du_dt_tau[0] = du_dt[-1]
         f_tau[0] = f(u_tau[0], du_dt_tau[0], t[-1] + tau[0])
 
         for i in range(1, tau_size):
+            # correct values of the function and its derivative according to (14), (15) from [Everhart1]
             u_tau[i], du_dt_tau[i] = self._extrapolate(tau[i], u_tau[0], du_dt_tau[0], f_tau[0], a)
+
+            # calculate right side of ODE
             f_tau[i] = f(u_tau[i], du_dt_tau[i], t[-1] + tau[i])
 
             # correct alfa coefficients according to (7) from [Everhart1]
@@ -1014,7 +979,8 @@ class EverhartIIODESolver:
                 for k in range(j + 1, a_size):
                     a[j] += c[k, j] * alfa[k]
 
-        # correct final values of the function and derivative according to (14), (15) from [Everhart1]
+        # correct values of the function and its derivative at the end of dt interval
+        # according to (14), (15) from [Everhart1]
         u_new, du_dt_new = self._extrapolate(dt, u_tau[0], du_dt_tau[0], f_tau[0], a)
 
         # needs for dt correction on every step according to chapter 3.4 from [Everhart1]
@@ -1326,3 +1292,32 @@ class EverhartIILobatto7ODESolver(EverhartIIODESolver):
         quad = quadpy.c1.gauss_lobatto
         super().__init__(self.order, quad, f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step,
                          is_interpolate=is_interpolate, tolerance=tolerance)
+
+
+def _interpolate_result(u: numpy.array, t: numpy.array, t0: numpy.longdouble, tmax: numpy.longdouble,
+                        dt: numpy.longdouble) -> Tuple[numpy.array, numpy.array]:
+    """
+    Interpolate ODE solution to uniform dt0 step
+    :param u: solution
+    :type u: numpy.array
+    :param t: time
+    :type t: numpy.array
+    :param t0: desired lower limit
+    :type t0: numpy.longdouble
+    :param tmax: desired upper limit
+    :type tmax: numpy.longdouble
+    :param dt: desired step size
+    :type dt: numpy.longdouble
+    :return: interpolated solution
+    :rtype: numpy.array
+    """
+    points_number = int((tmax - t0) / dt)
+    t_result = np.linspace(t0, t0 + dt * points_number, points_number + 1)
+    u_result = np.zeros((len(u[0]), len(t_result)), dtype='longdouble')
+    for i in range(len(u[0])):
+        solution = u[:, -1 - i]
+        fu = interpolate.interp1d(t, solution, kind='cubic', fill_value="extrapolate")
+        solution_result = fu(t_result)
+        u_result[i] = solution_result
+    u_result = numpy.rot90(u_result, k=3)
+    return u_result, t_result
