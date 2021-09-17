@@ -118,6 +118,7 @@ if __name__ == '__main__':
     x_solution1 = solution[:, 0]
     y_solution1 = solution[:, 1]
     z_solution1 = solution[:, 2]
+
     plt.plot(time_points, x_solution1, label=solver.name)
 
     points_number = int((tmax - t0) / dt0)
