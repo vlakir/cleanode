@@ -1,6 +1,6 @@
 import numpy
 import numpy as np
-from typing import Callable, Tuple
+from typing import Callable, Tuple, Optional
 from funnydeco import benchmark
 import quadpy
 from scipy import interpolate
@@ -111,7 +111,7 @@ class GenericExplicitRKODESolver:
             i += 1
 
         if self.is_adaptive_step and self.is_interpolate:
-            self.u, self.t = _interpolate_result(self.u, self.t, self.t0, self.tmax, self.dt0)
+            self.u, __, self.t = _interpolate_result(self.u, None, self.t, self.t0, self.tmax, self.dt0)
 
         return self.u, self.t
 
@@ -894,7 +894,7 @@ class EverhartIIODESolver:
 
     # noinspection PyUnusedLocal
     @benchmark
-    def solve(self, print_benchmark=False, benchmark_name='') -> Tuple[np.ndarray, np.ndarray]:
+    def solve(self, print_benchmark=False, benchmark_name='') -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         ODE solution
         :param print_benchmark: output the execution time to the console
@@ -927,9 +927,9 @@ class EverhartIIODESolver:
             i += 1
 
         if self.is_adaptive_step and self.is_interpolate:
-            self.u, self.t = _interpolate_result(self.u, self.t, self.t0, self.tmax, self.dt0)
+            self.u, self.du_dt, self.t = _interpolate_result(self.u, self.du_dt, self.t, self.t0, self.tmax, self.dt0)
 
-        return self.u, self.t
+        return self.u, self.du_dt, self.t
 
     def _do_step(self, u, du_dt, t, f, dt, h, alfa) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.longdouble]:
         """
@@ -1294,12 +1294,14 @@ class EverhartIILobatto7ODESolver(EverhartIIODESolver):
                          is_interpolate=is_interpolate, tolerance=tolerance)
 
 
-def _interpolate_result(u: numpy.array, t: numpy.array, t0: numpy.longdouble, tmax: numpy.longdouble,
-                        dt: numpy.longdouble) -> Tuple[numpy.array, numpy.array]:
+def _interpolate_result(u: numpy.array, du_dt: Optional[numpy.array], t: numpy.array, t0: numpy.longdouble,
+                        tmax: numpy.longdouble, dt: numpy.longdouble) -> Tuple[numpy.array, numpy.array, numpy.array]:
     """
     Interpolate ODE solution to uniform dt0 step
     :param u: solution
     :type u: numpy.array
+    :param du_dt: solution's derivative
+    :type du_dt: Optional[numpy.array]
     :param t: time
     :type t: numpy.array
     :param t0: desired lower limit
@@ -1309,15 +1311,32 @@ def _interpolate_result(u: numpy.array, t: numpy.array, t0: numpy.longdouble, tm
     :param dt: desired step size
     :type dt: numpy.longdouble
     :return: interpolated solution
-    :rtype: numpy.array
+    :rtype: Tuple[numpy.array, numpy.array, numpy.array]
     """
+
     points_number = int((tmax - t0) / dt)
     t_result = np.linspace(t0, t0 + dt * points_number, points_number + 1)
     u_result = np.zeros((len(u[0]), len(t_result)), dtype='longdouble')
+
+    if du_dt is not None:
+        du_dt_result = np.zeros((len(du_dt[0]), len(t_result)), dtype='longdouble')
+    else:
+        du_dt_result = None
+
     for i in range(len(u[0])):
         solution = u[:, -1 - i]
         fu = interpolate.interp1d(t, solution, kind='cubic', fill_value="extrapolate")
         solution_result = fu(t_result)
         u_result[i] = solution_result
+
+        if du_dt is not None:
+            solution = du_dt[:, -1 - i]
+            fdu = interpolate.interp1d(t, solution, kind='cubic', fill_value="extrapolate")
+            solution_result = fdu(t_result)
+            du_dt_result[i] = solution_result
+
     u_result = numpy.rot90(u_result, k=3)
-    return u_result, t_result
+    if du_dt is not None:
+        du_dt_result = numpy.rot90(du_dt_result, k=3)
+
+    return u_result, du_dt_result, t_result

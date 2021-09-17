@@ -9,7 +9,6 @@ from cleanode.ode_solvers import *
 
 # Example of the system ODE solving: cannon firing
 if __name__ == '__main__':
-
     # noinspection PyUnusedLocal
     def f(u: List[float], t: Union[np.ndarray, np.float64]) -> List:
         """
@@ -60,7 +59,7 @@ if __name__ == '__main__':
 
         # Mathematically, the ODE system looks like this:
         # d(dx)/dt^2 = -x / sqrt(x^2 + y^2)^3
-        # d(dy)/dt^2 = -x / sqrt(x^2 + y^2)^3
+        # d(dy)/dt^2 = -y / sqrt(x^2 + y^2)^3
 
         x = u[0]
         y = u[1]
@@ -72,7 +71,7 @@ if __name__ == '__main__':
 
         return right_sides
 
-    # noinspection PyUnusedLocal
+
     def exact_f(t):
         x = np.sin(t)
         y = np.cos(t)
@@ -99,7 +98,7 @@ if __name__ == '__main__':
     u0 = np.array([x0, y0], dtype='longdouble')
     du_dt0 = np.array([vx0, vy0], dtype='longdouble')
     solver = EverhartIIRadau7ODESolver(f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=True, tolerance=1e-8)
-    solution, time_points = solver.solve(print_benchmark=True, benchmark_name=solver.name)
+    solution, d_solution, time_points = solver.solve(print_benchmark=True, benchmark_name=solver.name)
     x_solution1 = solution[:, 0]
     y_solution1 = solution[:, 1]
     plt.plot(time_points, x_solution1, label=solver.name)

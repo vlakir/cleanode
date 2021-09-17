@@ -68,12 +68,12 @@ if __name__ == '__main__':
 
     u0 = np.array([x0], dtype='longdouble')  # начальное положение
     du_dt0 = np.array([v0], dtype='longdouble')  # начальная скорость
-    solver = EverhartIIRadau7ODESolver(f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=True, tolerance=1e-8)
-    u3, t3 = solver.solve(print_benchmark=True, benchmark_name=solver.name)
+    solver = EverhartIIRadau7ODESolver(f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=False, tolerance=1e-8)
+    u3, du3, t3 = solver.solve(print_benchmark=True, benchmark_name=solver.name)
     plt.plot(t3, u3, label=solver.name)
 
     u0 = np.array([x0, v0], dtype='longdouble')
-    solver = RungeKutta4ODESolver(f1, u0, t0, tmax, dt0, is_adaptive_step=True, tolerance=1e-8)
+    solver = RungeKutta4ODESolver(f1, u0, t0, tmax, dt0, is_adaptive_step=False, tolerance=1e-8)
     u1, t1 = solver.solve(print_benchmark=True, benchmark_name=solver.name)
     solution_x = u1[:, 0]
     plt.plot(t1, solution_x, label=solver.name)
