@@ -7,7 +7,7 @@ import scipy.constants as const
 from cleanode.ode_solvers import *
 
 
-# Example of the system ODE solving: cannon firing
+# Example of the system ODE solving: simple orbit
 if __name__ == '__main__':
     # noinspection PyUnusedLocal
     def f(u: List[float], t: Union[np.ndarray, np.float64]) -> List:
