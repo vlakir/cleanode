@@ -1,7 +1,7 @@
 [![PyPi Version](https://img.shields.io/pypi/v/cleanode.svg?style=flat-square)](https://pypi.org/project/cleanode)
 
 # CleanODE
-Сustomized collection of ODE solvers
+Customized collection of ODE solvers
 
 ____
 ## Installation:
