@@ -112,7 +112,7 @@ class GenericExplicitRKODESolver:
                     order = len(self.a)
                     self.dt *= 0.8 * (self.tolerance / real_tolerance) ** (1 / (order + 1))
 
-                    self.t = np.append(self.t, self.t[-1] + dt_current)
+                self.t = np.append(self.t, self.t[-1] + dt_current)
             else:
                 # noinspection PyTypeChecker
                 u_next = self._do_step(self.u, self.f, i, self.t, self.dt, self.a, self.b, self.c)
