@@ -870,7 +870,7 @@ class EverhartIIODESolver:
 
         u0 = np.asarray(u0, dtype='longdouble')
         self.ode_system_size = u0.size
-        self.alfa = np.zeros([len(self.h) - 1, len(u0)], dtype='longdouble')
+        self.alfa = np.zeros([len(self.h), len(u0)], dtype='longdouble')
 
         # 2d0: not so stuppid way to define start dt
         self.dt = dt0 / 2
@@ -949,9 +949,9 @@ class EverhartIIODESolver:
         a = np.zeros([a_size, u_size], dtype='longdouble')
 
         # calculate c coefficients according to (9) from [Everhart1]
-        c = np.zeros([a_size, a_size], dtype='longdouble')
-        for i in range(a_size):
-            for j in range(a_size):
+        c = np.zeros([tau_size, tau_size], dtype='longdouble')
+        for i in range(tau_size):
+            for j in range(tau_size):
                 if i == j:
                     c[i, j] = 1
                 elif (j == 0) and (i > 0):
@@ -978,7 +978,7 @@ class EverhartIIODESolver:
             # correct a coefficients according to (8) from [Everhart1]
             for j in range(i):
                 a[j] = alfa[j]
-                for k in range(j + 1, a_size):
+                for k in range(j + 1, tau_size):
                     a[j] += c[k, j] * alfa[k]
 
         # correct values of the function and its derivative at the end of dt interval
