@@ -99,14 +99,21 @@ class GenericExplicitRKODESolver:
         while (self.t[i] + self.dt) <= self.tmax:
             self.n = i
 
-            # noinspection PyTypeChecker
-            u_next = self._do_step(self.u, self.f, self.n, self.t, self.dt, self.a, self.b, self.c)
-            # noinspection PyTypeChecker
-            u_next1 = self._do_step(self.u, self.f, self.n, self.t, self.dt, self.a, self.b1, self.c)
-            real_tolerance = (abs(u_next - u_next1).sum())
+            if self.is_adaptive_step:
+                u_next = None
+                real_tolerance = self.tolerance * 2
+                while real_tolerance > self.tolerance:
+                    # noinspection PyTypeChecker
+                    u_next = self._do_step(self.u, self.f, self.n, self.t, self.dt, self.a, self.b, self.c)
+                    # noinspection PyTypeChecker
+                    u_next1 = self._do_step(self.u, self.f, self.n, self.t, self.dt, self.a, self.b1, self.c)
+                    real_tolerance = (abs(u_next - u_next1).sum())
+                    order = len(self.a)
+                    self.dt *= (self.tolerance / real_tolerance) ** (1 / (order + 1))
+            else:
+                u_next = self._do_step(self.u, self.f, self.n, self.t, self.dt, self.a, self.b, self.c)
 
             self.t = np.append(self.t, self.t[-1] + self.dt)
-            self._change_dt(real_tolerance, self.tolerance)
             self.u = np.vstack([self.u, u_next])
             i += 1
 
@@ -135,21 +142,6 @@ class GenericExplicitRKODESolver:
         unew += u[n]
 
         return unew
-
-    def _change_dt(self, real_tolerance: float, desired_tolerance: float) -> None:
-        """
-        Adaptive algorithm for step changing
-        :param real_tolerance: real tolerance on current step
-        :type real_tolerance: float
-        :param desired_tolerance: desired tolerance for the next step
-        :type desired_tolerance: float
-        """
-        if self.is_adaptive_step:
-            order = len(self.a)
-
-            # stuppid empirical equation used for approximate comparability with Everhart's stepsize calculate algorithm
-            # 2do: find out mathematical correct way
-            self.dt = 0.9 * self.dt * ((desired_tolerance * 1e8) / real_tolerance) ** (1 / order)
 
 
 class EulerODESolver(GenericExplicitRKODESolver):
@@ -244,9 +236,7 @@ class RungeKutta4ODESolver(GenericExplicitRKODESolver):
         [1 / 2, 0, 1 / 2, 0, 0],
         [1, 0, 0, 1, 0],
 
-        [None, 1 / 6, 1 / 3, 1 / 3, 1 / 6],
-        [None, 1 / 6, 1 / 3, - 2 / 3, 1 / 6]
-
+        [None, 1 / 6, 1 / 3, 1 / 3, 1 / 6]
     ], dtype='longdouble')
 
     name = 'Fourth-order Runge–Kutta method'
@@ -882,7 +872,9 @@ class EverhartIIODESolver:
         self.ode_system_size = u0.size
         self.alfa = np.zeros([len(self.h) - 1, len(u0)], dtype='longdouble')
 
-        self.dt = dt0
+        # 2d0: not so stuppid way to define start dt
+        self.dt = dt0 / 2
+
         self.tmax = tmax
         self.t0 = t0
         self.dt0 = dt0
@@ -915,13 +907,23 @@ class EverhartIIODESolver:
                                                   self.alfa)
         i = 0
         while (self.t[i] + self.dt) <= self.tmax:
-            u_next, du_dt_next, self.alfa, real_tolerance = self._do_step(self.u, self.du_dt, self.t, self.f2,
-                                                                               self.dt, self.h, self.alfa)
-            self.t = np.append(self.t, self.t[-1] + self.dt)
 
             # 2do: correct alfa coefficients in case of changing dt according to p.38 of [Everhart1]
 
-            self._change_dt(real_tolerance, self.tolerance)
+            if self.is_adaptive_step:
+                u_next = None
+                real_tolerance = self.tolerance * 2
+                while real_tolerance > self.tolerance:
+                    u_next, du_dt_next, self.alfa, real_tolerance = self._do_step(self.u, self.du_dt, self.t, self.f2,
+                                                                                  self.dt, self.h, self.alfa)
+                    a_size = len(self.h) - 1
+                    # according to chapter 3.4 from [Everhart1]
+                    self.dt = ((self.tolerance / real_tolerance) ** (1 / (a_size + 2)))
+            else:
+                u_next, du_dt_next, self.alfa, real_tolerance = self._do_step(self.u, self.du_dt, self.t, self.f2,
+                                                                              self.dt, self.h, self.alfa)
+
+            self.t = np.append(self.t, self.t[-1] + self.dt)
             self.u = np.vstack([self.u, u_next])
             self.du_dt = np.vstack([self.du_dt, du_dt_next])
             i += 1
@@ -987,19 +989,6 @@ class EverhartIIODESolver:
         real_tolerance = (abs(a[-1] / ((a_size + 2) * (a_size + 1)))).sum()
 
         return u_new, du_dt_new, alfa, real_tolerance
-
-    def _change_dt(self, real_tolerance: float, desired_tolerance: float) -> None:
-        """
-        Adaptive algorithm for step changing
-        :param real_tolerance: real tolerance on current step
-        :type real_tolerance: float
-        :param desired_tolerance: desired tolerance for the next step
-        :type desired_tolerance: float
-        """
-        if self.is_adaptive_step:
-            a_size = len(self.h) - 1
-            # according to chapter 3.4 from [Everhart1]
-            self.dt = ((desired_tolerance / real_tolerance) ** (1 / (a_size + 2)))
 
     @staticmethod
     def _extrapolate(time: numpy.longdouble, u0: numpy.longdouble, du_dt0: numpy.longdouble, f0: numpy.longdouble,

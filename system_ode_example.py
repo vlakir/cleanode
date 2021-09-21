@@ -91,7 +91,7 @@ if __name__ == '__main__':
     tmax = np.longdouble(2 * math.pi)
     dt0 = np.longdouble(0.01)
 
-    is_adaptive_step = True
+    is_adaptive_step = False
     tolerance = 1e-8
 
     # initial conditions:
@@ -103,7 +103,7 @@ if __name__ == '__main__':
     vz0 = np.longdouble(0)
 
     u0 = np.array([x0, vx0, y0, vy0, z0, vz0], dtype='longdouble')
-    solver = RungeKutta4ODESolver(f, u0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step, tolerance=tolerance)
+    solver = Fehlberg45Solver(f, u0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step, tolerance=tolerance)
     solution, time_points = solver.solve(print_benchmark=True, benchmark_name=solver.name)
     x_solution = solution[:, 0]
     y_solution = solution[:, 2]
