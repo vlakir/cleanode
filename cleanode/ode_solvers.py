@@ -48,7 +48,6 @@ class GenericExplicitRKODESolver:
         self.butcher_tableau = butcher_tableau
         self.dt = dt0
         self.tmax = tmax
-        self.n = 0
         self.u = None
         self.t0 = t0
         self.dt0 = dt0
@@ -96,24 +95,29 @@ class GenericExplicitRKODESolver:
         self.u[0] = self.u0
 
         i = 0
-        while (self.t[i] + self.dt) <= self.tmax:
-            self.n = i
-
+        while self.t[i] <= self.tmax:
             if self.is_adaptive_step:
                 u_next = None
                 real_tolerance = self.tolerance * 2
                 while real_tolerance > self.tolerance:
+                    dt_current = self.dt
                     # noinspection PyTypeChecker
-                    u_next = self._do_step(self.u, self.f, self.n, self.t, self.dt, self.a, self.b, self.c)
+                    u_next = self._do_step(self.u, self.f, i, self.t, self.dt, self.a, self.b, self.c)
                     # noinspection PyTypeChecker
-                    u_next1 = self._do_step(self.u, self.f, self.n, self.t, self.dt, self.a, self.b1, self.c)
-                    real_tolerance = (abs(u_next - u_next1).sum())
-                    order = len(self.a)
-                    self.dt *= (self.tolerance / real_tolerance) ** (1 / (order + 1))
-            else:
-                u_next = self._do_step(self.u, self.f, self.n, self.t, self.dt, self.a, self.b, self.c)
+                    u_next1 = self._do_step(self.u, self.f, i, self.t, self.dt, self.a, self.b1, self.c)
 
-            self.t = np.append(self.t, self.t[-1] + self.dt)
+                    real_tolerance = (abs(u_next - u_next1).sum())
+
+                    # the way from [Hairer, Norsett, Wanner: Solving Ordinary Differential Equations I]
+                    order = len(self.a)
+                    self.dt *= 0.8 * (self.tolerance / real_tolerance) ** (1 / (order + 1))
+
+                    self.t = np.append(self.t, self.t[-1] + dt_current)
+            else:
+                # noinspection PyTypeChecker
+                u_next = self._do_step(self.u, self.f, i, self.t, self.dt, self.a, self.b, self.c)
+                self.t = np.append(self.t, self.t[-1] + self.dt)
+
             self.u = np.vstack([self.u, u_next])
             i += 1
 
@@ -872,8 +876,7 @@ class EverhartIIODESolver:
         self.ode_system_size = u0.size
         self.alfa = np.zeros([len(self.h), len(u0)], dtype='longdouble')
 
-        # 2d0: not so stuppid way to define start dt
-        self.dt = dt0 / 2
+        self.dt = dt0
 
         self.tmax = tmax
         self.t0 = t0
@@ -906,24 +909,19 @@ class EverhartIIODESolver:
             __, __, self.alfa, __ = self._do_step(self.u, self.du_dt, self.t, self.f2, self.dt, self.h,
                                                   self.alfa)
         i = 0
-        while (self.t[i] + self.dt) <= self.tmax:
+        while self.t[i] <= self.tmax:
 
             # 2do: correct alfa coefficients in case of changing dt according to p.38 of [Everhart1]
 
-            if self.is_adaptive_step:
-                u_next = None
-                real_tolerance = self.tolerance * 2
-                while real_tolerance > self.tolerance:
-                    u_next, du_dt_next, self.alfa, real_tolerance = self._do_step(self.u, self.du_dt, self.t, self.f2,
-                                                                                  self.dt, self.h, self.alfa)
-                    a_size = len(self.h) - 1
-                    # according to chapter 3.4 from [Everhart1]
-                    self.dt = ((self.tolerance / real_tolerance) ** (1 / (a_size + 2)))
-            else:
-                u_next, du_dt_next, self.alfa, real_tolerance = self._do_step(self.u, self.du_dt, self.t, self.f2,
-                                                                              self.dt, self.h, self.alfa)
-
+            u_next, du_dt_next, self.alfa, real_tolerance = self._do_step(self.u, self.du_dt, self.t, self.f2,
+                                                                          self.dt, self.h, self.alfa)
             self.t = np.append(self.t, self.t[-1] + self.dt)
+
+            if self.is_adaptive_step:
+                # according to chapter 3.4 from [Everhart1]
+                # 0.5 is my own empirical coefficient
+                self.dt = 0.5 * ((self.tolerance / real_tolerance) ** (1 / ((len(self.h) - 1) + 2)))
+
             self.u = np.vstack([self.u, u_next])
             self.du_dt = np.vstack([self.du_dt, du_dt_next])
             i += 1
