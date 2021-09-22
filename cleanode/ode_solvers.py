@@ -99,6 +99,7 @@ class GenericExplicitRKODESolver:
             if self.is_adaptive_step:
                 u_next = None
                 real_tolerance = self.tolerance * 2
+                dt_current = self.dt
                 while real_tolerance > self.tolerance:
                     dt_current = self.dt
                     # noinspection PyTypeChecker
@@ -874,7 +875,7 @@ class EverhartIIODESolver:
 
         u0 = np.asarray(u0, dtype='longdouble')
         self.ode_system_size = u0.size
-        self.alfa = np.zeros([len(self.h), len(u0)], dtype='longdouble')
+        self.alfa = np.zeros([len(self.h) - 1, len(u0)], dtype='longdouble')
 
         self.dt = dt0
 
@@ -910,7 +911,6 @@ class EverhartIIODESolver:
                                                   self.alfa)
         i = 0
         while self.t[i] <= self.tmax:
-
             # 2do: correct alfa coefficients in case of changing dt according to p.38 of [Everhart1]
 
             u_next, du_dt_next, self.alfa, real_tolerance = self._do_step(self.u, self.du_dt, self.t, self.f2,
@@ -919,8 +919,9 @@ class EverhartIIODESolver:
 
             if self.is_adaptive_step:
                 # according to chapter 3.4 from [Everhart1]
-                # 0.5 is my own empirical coefficient
-                self.dt = 0.5 * ((self.tolerance / real_tolerance) ** (1 / ((len(self.h) - 1) + 2)))
+                # coeff is my own empirical coefficient
+                coeff = 0.5
+                self.dt = coeff * ((self.tolerance / real_tolerance) ** (1 / ((len(self.h) - 1) + 2)))
 
             self.u = np.vstack([self.u, u_next])
             self.du_dt = np.vstack([self.du_dt, du_dt_next])
@@ -947,9 +948,9 @@ class EverhartIIODESolver:
         a = np.zeros([a_size, u_size], dtype='longdouble')
 
         # calculate c coefficients according to (9) from [Everhart1]
-        c = np.zeros([tau_size, tau_size], dtype='longdouble')
-        for i in range(tau_size):
-            for j in range(tau_size):
+        c = np.zeros([a_size, a_size], dtype='longdouble')
+        for i in range(a_size):
+            for j in range(a_size):
                 if i == j:
                     c[i, j] = 1
                 elif (j == 0) and (i > 0):
@@ -970,13 +971,13 @@ class EverhartIIODESolver:
             f_tau[i] = f(u_tau[i], du_dt_tau[i], t[-1] + tau[i])
 
             # correct alfa coefficients according to (7) from [Everhart1]
-            for j in range(i):
+            for j in range(a_size):
                 alfa[j] = self._divided_difference(j + 1, f_tau, tau)
 
             # correct a coefficients according to (8) from [Everhart1]
-            for j in range(i):
+            for j in range(a_size):
                 a[j] = alfa[j]
-                for k in range(j + 1, tau_size):
+                for k in range(j + 1, a_size):
                     a[j] += c[k, j] * alfa[k]
 
         # correct values of the function and its derivative at the end of dt interval
