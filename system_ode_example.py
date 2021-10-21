@@ -91,7 +91,7 @@ if __name__ == '__main__':
     tmax = np.longdouble(10 * math.pi)
     dt0 = np.longdouble(0.01)
 
-    tolerance = 1e-4
+    tolerance = 1e-5
     is_adaptive_step = True
 
     # initial conditions:

@@ -107,11 +107,17 @@ class GenericExplicitRKODESolver:
                     # noinspection PyTypeChecker
                     u_next1 = self._do_step(self.u, self.f, i, self.t, self.dt, self.a, self.b1, self.c)
 
-                    real_tolerance = (abs(u_next - u_next1).sum())
+                    real_tolerance = max(abs(u_next - u_next1))
 
                     # the way from [Hairer, Norsett, Wanner: Solving Ordinary Differential Equations I]
                     order = len(self.a)
-                    self.dt *= 0.8 * (self.tolerance / real_tolerance) ** (1 / (order + 1))
+                    fact_max = 1.5
+                    if real_tolerance != 0:
+                        fact_real = (self.tolerance / real_tolerance) ** (1 / (order + 1))
+                    else:
+                        fact_real = fact_max * 2
+                    fact = min([fact_max, fact_real])
+                    self.dt *= 0.8 * fact
 
                 self.t = np.append(self.t, self.t[-1] + dt_current)
             else:
