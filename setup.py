@@ -3,11 +3,11 @@ from setuptools import setup, find_packages
 with open("README.md", "r") as readme_file:
     readme = readme_file.read()
 
-requirements = ["numpy>=1.21.2", "funnydeco>=0.1.5", "matplotlib>=3.4.3", "scipy>=1.7.1", "PyQt5>=5.15.4"]
+requirements = ["numpy>=1.21.2", "funnydeco>=0.1.5", "matplotlib>=3.4.3", "scipy>=1.7.1"]
 
 setup(
     name="cleanode",
-    version="0.1.7",
+    version="0.1.8",
     author="Vladimir Kirievskiy",
     author_email="vlakir1234@gmail.com",
     description="Example using an embedded solver",
