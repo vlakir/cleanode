@@ -16,6 +16,7 @@ class GenericExplicitRKODESolver:
                  t0: numpy.longdouble,
                  tmax: numpy.longdouble,
                  dt0: numpy.longdouble,
+                 dt_interp=None,
                  butcher_tableau=None,
                  name='method name is not defined',
                  is_adaptive_step=False,
@@ -32,6 +33,8 @@ class GenericExplicitRKODESolver:
         :type tmax: numpy.longdouble
         :param dt0: initial step of integration
         :type dt0: numpy.longdouble
+        :param dt_interp: step of final interpolation (if None -> dt_interp = dt0)
+        :type dt_interp: numpy.longdouble
         :param butcher_tableau: Butcher tableau
         :type butcher_tableau: np.array
         :param name: method name
@@ -51,6 +54,11 @@ class GenericExplicitRKODESolver:
         self.u = None
         self.t0 = t0
         self.dt0 = dt0
+        if dt_interp is None:
+            self.dt_interp = dt0
+        else:
+            self.dt_interp = dt_interp
+
         self.ode_system_size = u0.size
         self.u0 = u0
         self.is_adaptive_step = is_adaptive_step
@@ -129,7 +137,7 @@ class GenericExplicitRKODESolver:
             i += 1
 
         if self.is_adaptive_step and self.is_interpolate:
-            self.u, __, self.t = _interpolate_result(self.u, None, self.t, self.t0, self.tmax, self.dt0)
+            self.u, __, self.t = _interpolate_result(self.u, None, self.t, self.t0, self.tmax, self.dt_interp)
 
         return self.u, self.t
 
@@ -834,6 +842,7 @@ class EverhartIIODESolver:
                  t0: numpy.longdouble,
                  tmax: numpy.longdouble,
                  dt0: numpy.longdouble,
+                 dt_interp=None,
                  is_adaptive_step=False,
                  is_interpolate=True,
                  tolerance=1e-8):
@@ -854,6 +863,8 @@ class EverhartIIODESolver:
         :type tmax: numpy.longdouble
         :param dt0: initial step of integration
         :type dt0: numpy.longdouble
+        :param dt_interp: step of final interpolation (if None -> dt_interp = dt0)
+        :type dt_interp: numpy.longdouble
         :param is_adaptive_step: use adaptive time step
         :type is_adaptive_step: bool
         :param is_interpolate: interpolate result to uniform dt0 step (needs for adaptive step only)
@@ -888,6 +899,10 @@ class EverhartIIODESolver:
         self.tmax = tmax
         self.t0 = t0
         self.dt0 = dt0
+        if dt_interp is None:
+            self.dt_interp = dt0
+        else:
+            self.dt_interp = dt_interp
 
         self.t = np.array([t0], dtype='longdouble')
 
@@ -934,7 +949,8 @@ class EverhartIIODESolver:
             i += 1
 
         if self.is_adaptive_step and self.is_interpolate:
-            self.u, self.du_dt, self.t = _interpolate_result(self.u, self.du_dt, self.t, self.t0, self.tmax, self.dt0)
+            self.u, self.du_dt, self.t = _interpolate_result(self.u, self.du_dt, self.t, self.t0, self.tmax,
+                                                             self.dt_interp)
 
         return self.u, self.du_dt, self.t
 
@@ -1056,6 +1072,7 @@ class EverhartIIRadau21ODESolver(EverhartIIODESolver):
                  t0: numpy.longdouble,
                  tmax: numpy.longdouble,
                  dt0: numpy.longdouble,
+                 dt_interp=None,
                  is_adaptive_step=False,
                  is_interpolate=True,
                  tolerance=1e-8):
@@ -1072,6 +1089,8 @@ class EverhartIIRadau21ODESolver(EverhartIIODESolver):
         :type tmax: numpy.longdouble
         :param dt0: initial step of integration
         :type dt0: numpy.longdouble
+        :param dt_interp: step of final interpolation (if None -> dt_interp = dt0)
+        :type dt_interp: numpy.longdouble
         :param is_adaptive_step: use adaptive time step
         :type is_adaptive_step: bool
         :param is_interpolate: interpolate result to uniform dt0 step (needs for adaptive step only)
@@ -1081,8 +1100,8 @@ class EverhartIIRadau21ODESolver(EverhartIIODESolver):
         """
         self.order = 21
         quad = quadpy.c1.gauss_radau
-        super().__init__(self.order, quad, f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step,
-                         is_interpolate=is_interpolate, tolerance=tolerance)
+        super().__init__(self.order, quad, f2, u0, du_dt0, t0, tmax, dt0, dt_interp=dt_interp,
+                         is_adaptive_step=is_adaptive_step, is_interpolate=is_interpolate, tolerance=tolerance)
 
 
 class EverhartIIRadau15ODESolver(EverhartIIODESolver):
@@ -1097,6 +1116,7 @@ class EverhartIIRadau15ODESolver(EverhartIIODESolver):
                  t0: numpy.longdouble,
                  tmax: numpy.longdouble,
                  dt0: numpy.longdouble,
+                 dt_interp=None,
                  is_adaptive_step=False,
                  is_interpolate=True,
                  tolerance=1e-8):
@@ -1113,6 +1133,8 @@ class EverhartIIRadau15ODESolver(EverhartIIODESolver):
         :type tmax: numpy.longdouble
         :param dt0: initial step of integration
         :type dt0: numpy.longdouble
+        :param dt_interp: step of final interpolation (if None -> dt_interp = dt0)
+        :type dt_interp: numpy.longdouble
         :param is_adaptive_step: use adaptive time step
         :type is_adaptive_step: bool
         :param tolerance: desired tolerance (needs for adaptive step only)
@@ -1120,8 +1142,8 @@ class EverhartIIRadau15ODESolver(EverhartIIODESolver):
         """
         self.order = 15
         quad = quadpy.c1.gauss_radau
-        super().__init__(self.order, quad, f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step,
-                         is_interpolate=is_interpolate, tolerance=tolerance)
+        super().__init__(self.order, quad, f2, u0, du_dt0, t0, tmax, dt0, dt_interp=dt_interp,
+                         is_adaptive_step=is_adaptive_step, is_interpolate=is_interpolate, tolerance=tolerance)
 
 
 class EverhartIIRadau7ODESolver(EverhartIIODESolver):
@@ -1136,6 +1158,7 @@ class EverhartIIRadau7ODESolver(EverhartIIODESolver):
                  t0: numpy.longdouble,
                  tmax: numpy.longdouble,
                  dt0: numpy.longdouble,
+                 dt_interp=None,
                  is_adaptive_step=False,
                  is_interpolate=True,
                  tolerance=1e-8):
@@ -1152,6 +1175,8 @@ class EverhartIIRadau7ODESolver(EverhartIIODESolver):
         :type tmax: numpy.longdouble
         :param dt0: initial step of integration
         :type dt0: numpy.longdouble
+        :param dt_interp: step of final interpolation (if None -> dt_interp = dt0)
+        :type dt_interp: numpy.longdouble
         :param is_adaptive_step: use adaptive time step
         :type is_adaptive_step: bool
         :param is_interpolate: interpolate result to uniform dt0 step (needs for adaptive step only)
@@ -1161,8 +1186,8 @@ class EverhartIIRadau7ODESolver(EverhartIIODESolver):
         """
         self.order = 7
         quad = quadpy.c1.gauss_radau
-        super().__init__(self.order, quad, f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step,
-                         is_interpolate=is_interpolate, tolerance=tolerance)
+        super().__init__(self.order, quad, f2, u0, du_dt0, t0, tmax, dt0, dt_interp=dt_interp,
+                         is_adaptive_step=is_adaptive_step, is_interpolate=is_interpolate, tolerance=tolerance)
 
 
 class EverhartIILobatto21ODESolver(EverhartIIODESolver):
@@ -1177,6 +1202,7 @@ class EverhartIILobatto21ODESolver(EverhartIIODESolver):
                  t0: numpy.longdouble,
                  tmax: numpy.longdouble,
                  dt0: numpy.longdouble,
+                 dt_interp=None,
                  is_adaptive_step=False,
                  is_interpolate=True,
                  tolerance=1e-8):
@@ -1193,6 +1219,8 @@ class EverhartIILobatto21ODESolver(EverhartIIODESolver):
         :type tmax: numpy.longdouble
         :param dt0: initial step of integration
         :type dt0: numpy.longdouble
+        :param dt_interp: step of final interpolation (if None -> dt_interp = dt0)
+        :type dt_interp: numpy.longdouble
         :param is_adaptive_step: use adaptive time step
         :type is_adaptive_step: bool
         :param is_interpolate: interpolate result to uniform dt0 step (needs for adaptive step only)
@@ -1202,8 +1230,8 @@ class EverhartIILobatto21ODESolver(EverhartIIODESolver):
         """
         self.order = 21
         quad = quadpy.c1.gauss_lobatto
-        super().__init__(self.order, quad, f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step,
-                         is_interpolate=is_interpolate, tolerance=tolerance)
+        super().__init__(self.order, quad, f2, u0, du_dt0, t0, tmax, dt0, dt_interp=dt_interp,
+                         is_adaptive_step=is_adaptive_step, is_interpolate=is_interpolate, tolerance=tolerance)
 
 
 class EverhartIILobatto15ODESolver(EverhartIIODESolver):
@@ -1218,6 +1246,7 @@ class EverhartIILobatto15ODESolver(EverhartIIODESolver):
                  t0: numpy.longdouble,
                  tmax: numpy.longdouble,
                  dt0: numpy.longdouble,
+                 dt_interp=None,
                  is_adaptive_step=False,
                  is_interpolate=True,
                  tolerance=1e-8):
@@ -1234,6 +1263,8 @@ class EverhartIILobatto15ODESolver(EverhartIIODESolver):
         :type tmax: numpy.longdouble
         :param dt0: initial step of integration
         :type dt0: numpy.longdouble
+        :param dt_interp: step of final interpolation (if None -> dt_interp = dt0)
+        :type dt_interp: numpy.longdouble
         :param is_adaptive_step: use adaptive time step
         :type is_adaptive_step: bool
         :param is_interpolate: interpolate result to uniform dt0 step (needs for adaptive step only)
@@ -1243,8 +1274,8 @@ class EverhartIILobatto15ODESolver(EverhartIIODESolver):
         """
         self.order = 15
         quad = quadpy.c1.gauss_lobatto
-        super().__init__(self.order, quad, f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step,
-                         is_interpolate=is_interpolate, tolerance=tolerance)
+        super().__init__(self.order, quad, f2, u0, du_dt0, t0, tmax, dt0, dt_interp=dt_interp,
+                         is_adaptive_step=is_adaptive_step, is_interpolate=is_interpolate, tolerance=tolerance)
 
 
 class EverhartIILobatto7ODESolver(EverhartIIODESolver):
@@ -1259,6 +1290,7 @@ class EverhartIILobatto7ODESolver(EverhartIIODESolver):
                  t0: numpy.longdouble,
                  tmax: numpy.longdouble,
                  dt0: numpy.longdouble,
+                 dt_interp=None,
                  is_adaptive_step=False,
                  is_interpolate=True,
                  tolerance=1e-8):
@@ -1275,6 +1307,8 @@ class EverhartIILobatto7ODESolver(EverhartIIODESolver):
         :type tmax: numpy.longdouble
         :param dt0: initial step of integration
         :type dt0: numpy.longdouble
+        :param dt_interp: step of final interpolation (if None -> dt_interp = dt0)
+        :type dt_interp: numpy.longdouble
         :param is_adaptive_step: use adaptive time step
         :type is_adaptive_step: bool
         :param is_interpolate: interpolate result to uniform dt0 step (needs for adaptive step only)
@@ -1284,8 +1318,8 @@ class EverhartIILobatto7ODESolver(EverhartIIODESolver):
         """
         self.order = 7
         quad = quadpy.c1.gauss_lobatto
-        super().__init__(self.order, quad, f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step,
-                         is_interpolate=is_interpolate, tolerance=tolerance)
+        super().__init__(self.order, quad, f2, u0, du_dt0, t0, tmax, dt0, dt_interp=dt_interp,
+                         is_adaptive_step=is_adaptive_step, is_interpolate=is_interpolate, tolerance=tolerance)
 
 
 def _interpolate_result(u: numpy.array, du_dt: Optional[numpy.array], t: numpy.array, t0: numpy.longdouble,

@@ -7,7 +7,7 @@ requirements = ["numpy>=1.21.2", "funnydeco>=0.1.5", "matplotlib>=3.4.3", "scipy
 
 setup(
     name="cleanode",
-    version="0.1.8",
+    version="0.1.9",
     author="Vladimir Kirievskiy",
     author_email="vlakir1234@gmail.com",
     description="Example using an embedded solver",

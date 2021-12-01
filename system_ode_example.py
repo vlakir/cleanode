@@ -89,7 +89,8 @@ if __name__ == '__main__':
     # calculation parameters:
     t0 = np.longdouble(0)
     tmax = np.longdouble(10 * math.pi)
-    dt0 = np.longdouble(0.01)
+    dt0 = np.longdouble(0.001)
+    dt_interp = np.longdouble(0.01)
 
     tolerance = 1e-5
     is_adaptive_step = True
@@ -103,7 +104,8 @@ if __name__ == '__main__':
     vz0 = np.longdouble(0)
 
     u0 = np.array([x0, vx0, y0, vy0, z0, vz0], dtype='longdouble')
-    solver = Fehlberg45Solver(f, u0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step, tolerance=tolerance)
+    solver = Fehlberg45Solver(f, u0, t0, tmax, dt0, dt_interp=dt_interp, is_adaptive_step=is_adaptive_step,
+                              tolerance=tolerance)
     solution, time_points = solver.solve(print_benchmark=True, benchmark_name=solver.name)
     x_solution = solution[:, 0]
     y_solution = solution[:, 2]
@@ -117,8 +119,8 @@ if __name__ == '__main__':
 
     u0 = np.array([x0, y0, z0], dtype='longdouble')
     du_dt0 = np.array([vx0, vy0, vz0], dtype='longdouble')
-    solver1 = EverhartIIRadau7ODESolver(f2, u0, du_dt0, t0, tmax, dt0, is_adaptive_step=is_adaptive_step,
-                                        tolerance=tolerance)
+    solver1 = EverhartIIRadau7ODESolver(f2, u0, du_dt0, t0, tmax, dt0, dt_interp=dt_interp,
+                                        is_adaptive_step=is_adaptive_step, tolerance=tolerance)
     solution1, d_solution1, time_points1 = solver1.solve(print_benchmark=True, benchmark_name=solver1.name)
     x_solution1 = solution1[:, 0]
     y_solution1 = solution1[:, 1]
@@ -126,12 +128,12 @@ if __name__ == '__main__':
 
     ax.plot(time_points1, x_solution1, label=solver1.name)
 
-    points_number = int((tmax - t0) / dt0)
+    points_number = int((tmax - t0) / dt_interp)
 
     if is_adaptive_step:
-        time_exact = np.linspace(t0, t0 + dt0 * points_number, (points_number + 1))
+        time_exact = np.linspace(t0, t0 + dt_interp * points_number, (points_number + 1))
     else:
-        time_exact = np.linspace(t0, t0 + dt0 * points_number, points_number + 2)
+        time_exact = np.linspace(t0, t0 + dt_interp * points_number, points_number + 2)
 
     x_exact, y_exact = exact_f(time_exact)
     plt.plot(time_exact, x_exact, label='Exact analytical solution')
